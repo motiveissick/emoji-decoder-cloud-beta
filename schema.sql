@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   display_name TEXT NOT NULL,
   overlay_token TEXT UNIQUE NOT NULL,
   session_token_hash TEXT UNIQUE NOT NULL,
+  kick_user_id TEXT UNIQUE,
   kick_access_token TEXT,
   kick_refresh_token TEXT,
   kick_token_expires_at BIGINT,
@@ -13,6 +14,8 @@ CREATE TABLE IF NOT EXISTS tenants (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS kick_user_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS tenants_kick_user_id_unique ON tenants(kick_user_id) WHERE kick_user_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS scores (
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
   user_key TEXT NOT NULL,
