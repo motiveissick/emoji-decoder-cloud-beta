@@ -1,0 +1,1 @@
+{"name":"emoji-decoder-cloud-beta","version":"0.1.0","private":true,"type":"commonjs","scripts":{"start":"node server.js","db:migrate":"node migrate.js"},"engines":{"node":">=22"},"dependencies":{"express":"5.1.0","pg":"8.16.3"}}

@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: emoji-decoder-beta
+    runtime: docker
+    plan: starter
+    healthCheckPath: /healthz
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: emoji-decoder-db
+          property: connectionString
+      - key: PUBLIC_URL
+        sync: false
+      - key: KICK_CLIENT_ID
+        sync: false
+      - key: KICK_CLIENT_SECRET
+        sync: false
+      - key: INVITE_CODES
+        sync: false
+      - key: TOKEN_ENCRYPTION_KEY
+        generateValue: true
+databases:
+  - name: emoji-decoder-db
+    plan: basic-256mb
+    databaseName: emoji_decoder
+    user: emoji_decoder
