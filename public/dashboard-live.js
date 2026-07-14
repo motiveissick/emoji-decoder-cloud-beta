@@ -164,7 +164,7 @@
         remaining = formatRemaining(round.endsAt - Date.now());
       card.classList.toggle("active", !result);
       card.classList.toggle("finished", result);
-      card.innerHTML = `<div class="live-round-head"><div><small>${safe(round.category)} · ${safe(round.difficulty)}</small><h3>${result ? "Round results" : round.isJackpot ? "Jackpot round" : "Round in progress"}</h3></div><b id="live-round-timer" role="timer" aria-live="off">${result ? "DONE" : remaining}</b></div><div class="live-round-emojis">${safe(round.emojis || "…")}</div><div class="live-round-meta"><span>${round.correctCount} correct viewer${round.correctCount === 1 ? "" : "s"}</span><span>${round.winner ? `Winner: ${safe(round.winner)}` : result ? "No winner yet" : "Accepting Kick chat answers"}</span></div>`;
+      card.innerHTML = `<div class="live-round-head"><div><small>${safe(round.category)} · ${safe(round.difficulty)}</small><h3>${result ? "Round results" : round.isJackpot ? "Jackpot round" : "Round in progress"}</h3></div><b id="live-round-timer" role="timer" aria-live="off">${result ? "DONE" : remaining}</b></div><div class="live-round-emojis">${safe(round.emojis || "…")}</div><div class="live-round-answer"><span>Answer</span><strong>${safe(round.answer || "Not available")}</strong><small>Dashboard only</small></div><div class="live-round-meta"><span>${round.correctCount} correct viewer${round.correctCount === 1 ? "" : "s"}</span><span>${round.winner ? `Winner: ${safe(round.winner)}` : result ? "No winner yet" : "Accepting Kick chat answers"}</span></div>`;
     } else {
       card.className = "live-round-card";
       card.innerHTML =

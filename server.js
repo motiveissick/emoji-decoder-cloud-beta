@@ -1593,7 +1593,7 @@ function dashboardRound(round) {
     category: round.category,
     difficulty: round.difficulty,
     emojis: round.status === "finished" ? round.emojis : round.visibleEmojis,
-    answer: round.status === "finished" ? round.answers?.[0] : null,
+    answer: round.answers?.[0] || null,
     startedAt: round.startedAt,
     endsAt: round.endsAt,
     correctCount: round.correctAnswers?.length || 0,

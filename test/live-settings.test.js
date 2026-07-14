@@ -74,7 +74,7 @@ function loadServer(query, options = {}) {
     source.lastIndexOf("\npool\n  .query(fs.readFileSync"),
   );
   assert.notEqual(bootstrap, -1, "server bootstrap marker should exist");
-  const instrumented = `${source.slice(0, bootstrap)}\nglobalThis.__server={push,pushGuest,saveGuest,syncActiveGuestSettings,queuedGuestMutation,queuedTenantSettings,runAutomaticRounds,runGuestAutomaticRounds,message,rankingForViewer,unlockBadges,startRound,finishRound,skipRound,showScoreboard,hideScoreboard,dashboardLiveState,serializeActiveRound,hydrateActiveRound,persistActiveRound,restoreActiveRounds,sameOrigin,BADGES,rounds,rankCards,badgeAlerts,scoreboardStates,sourceConnections,streams,guestStreams,pushQueues,guestPushQueues,guestMessageQueues,tenantSettingsQueues};`;
+  const instrumented = `${source.slice(0, bootstrap)}\nglobalThis.__server={push,pushGuest,saveGuest,syncActiveGuestSettings,queuedGuestMutation,queuedTenantSettings,runAutomaticRounds,runGuestAutomaticRounds,message,rankingForViewer,unlockBadges,startRound,finishRound,skipRound,showScoreboard,hideScoreboard,dashboardLiveState,dashboardRound,serializeActiveRound,hydrateActiveRound,persistActiveRound,restoreActiveRounds,sameOrigin,BADGES,rounds,rankCards,badgeAlerts,scoreboardStates,sourceConnections,streams,guestStreams,pushQueues,guestPushQueues,guestMessageQueues,tenantSettingsQueues};`;
   const context = vm.createContext({
     require: (id) =>
       id === "express"
@@ -755,6 +755,42 @@ test("dashboard readiness reports real Kick and OBS connection health", async ()
   assert.ok(live.readiness.checks.every((check) => check.state === "ready"));
 });
 
+test("dashboard live control reveals the active answer without changing viewer packets", () => {
+  const server = loadServer(async (sql) => {
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    roundData = {
+      id: "round-answer",
+      status: "open",
+      category: "Film",
+      difficulty: "easy",
+      emojis: "🦁 👑",
+      visibleEmojis: "🦁",
+      answers: ["The Lion King", "Lion King"],
+      correctAnswers: [],
+      startedAt: Date.now(),
+      endsAt: Date.now() + 60000,
+      isJackpot: false,
+    },
+    round = server.dashboardRound(roundData),
+    finishedRound = server.dashboardRound({
+      ...roundData,
+      status: "finished",
+      winner: { username: "FastViewer" },
+    }),
+    source = fs.readFileSync(path.join(root, "server.js"), "utf8"),
+    viewerGuards =
+      source.match(
+        /answer: game\.status === "finished" \? game\.answers\[0\] : null/g,
+      ) || [];
+
+  assert.equal(round.answer, "The Lion King");
+  assert.equal(round.emojis, "🦁");
+  assert.equal(finishedRound.answer, "The Lion King");
+  assert.equal(finishedRound.emojis, "🦁 👑");
+  assert.ok(viewerGuards.length >= 2);
+});
+
 test("rotating OBS links requires confirmation and disconnects every old source", async () => {
   const tenant = {
     id: "tenant-rotate",
@@ -901,6 +937,8 @@ test("dashboard settings protect and unify unsaved changes", () => {
   assert.match(customizer, /dispatchEvent\(new Event\("input"/);
   assert.match(live, /if \(busy \|\| !current\) return/);
   assert.match(live, /emoji:live-state/);
+  assert.match(live, /live-round-answer/);
+  assert.match(live, /Dashboard only/);
 });
 
 test("automatic scheduler isolates tenant failures and prevents overlapping scans", async () => {
