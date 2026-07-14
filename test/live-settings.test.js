@@ -891,6 +891,7 @@ test("dashboard settings protect and unify unsaved changes", () => {
       "utf8",
     );
   assert.match(client, /beforeunload/);
+  assert.match(client, /selector: "\.customizer"/);
   assert.match(client, /Save all changes/);
   assert.match(client, /discardAll/);
   assert.match(client, /nav-dirty-dot/);

@@ -4,7 +4,7 @@
   const configs = [
     {
       id: "appearance",
-      selector: "#overlay-customizer",
+      selector: ".customizer",
       save: "#save-theme",
       status: "#theme-status",
       label: "Appearance",
