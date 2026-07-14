@@ -34,7 +34,7 @@
     section.className = "guide dashboard-panel live-control";
     section.innerHTML = `
       <div class="panel-heading-row">
-        <div class="panel-title"><span class="pill">LIVE CONTROL</span><h2>Run the show</h2></div>
+        <div class="panel-title"><span class="pill">LIVE CONTROL</span><h2>Live control</h2></div>
         <span id="live-control-status" class="live-control-status"><i></i> Loading live state…</span>
       </div>
       <div class="live-control-grid">
@@ -50,17 +50,32 @@
         </aside>
       </div>`;
     overview.after(section);
-    const overviewLink = nav.querySelector('a[href="#top"]'),
+    let link = nav.querySelector('a[href="#live-control"]');
+    if (!link) {
       link = document.createElement("a");
-    link.href = "#live-control";
-    link.innerHTML = '<span aria-hidden="true">●</span>Live control';
-    overviewLink?.after(link);
+      link.href = "#live-control";
+      link.innerHTML = '<span aria-hidden="true">●</span>Live';
+      nav.prepend(link);
+    }
     link.addEventListener("click", () => {
       nav
         .querySelectorAll("a")
         .forEach((item) => item.removeAttribute("aria-current"));
       link.setAttribute("aria-current", "page");
     });
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          nav
+            .querySelectorAll("a")
+            .forEach((item) => item.removeAttribute("aria-current"));
+          link.setAttribute("aria-current", "page");
+        },
+        { rootMargin: "-18% 0px -68% 0px", threshold: [0, 0.1, 0.35] },
+      );
+      observer.observe(section);
+    }
     section
       .querySelectorAll("[data-live-action]")
       .forEach((button) =>

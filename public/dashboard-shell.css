@@ -1,21 +1,13 @@
 :root {
   color-scheme: dark;
   --green: #53fc18;
-  --green-soft: rgba(83, 252, 24, 0.12);
-  --ink: #050906;
-  --surface: #0b120e;
-  --surface-raised: #101913;
-  --panel: #0e1711;
-  --line: #293a2f;
+  --ink: #070a08;
+  --panel: #0f1410;
+  --line: #2a312b;
   --line-soft: rgba(255, 255, 255, 0.08);
   --text: #f5fff7;
   --muted: #afbeb3;
-  --muted-strong: #c9d5cc;
-  --gold: #ffc94a;
-  --purple: #a879ff;
-  --danger: #ff7777;
-  --radius: 18px;
-  --shadow: 0 22px 60px rgba(0, 0, 0, 0.24);
+  --radius: 15px;
 }
 
 *,
@@ -25,26 +17,21 @@
 }
 
 html {
-  min-width: 320px;
+  min-width: 0;
   scroll-behavior: smooth;
-  scroll-padding-top: 150px;
+  scroll-padding-top: 62px;
 }
 
 body {
-  min-width: 320px;
+  min-width: 0;
   overflow-x: hidden;
   background:
     radial-gradient(
-      circle at 22% -8%,
-      rgba(44, 116, 57, 0.42),
-      transparent 31rem
+      circle at 22% -10%,
+      rgba(42, 72, 47, 0.18),
+      transparent 29rem
     ),
-    radial-gradient(
-      circle at 100% 24%,
-      rgba(74, 35, 112, 0.12),
-      transparent 28rem
-    ),
-    linear-gradient(180deg, #071009 0%, var(--ink) 38%, #040705 100%) !important;
+    linear-gradient(180deg, #090d0a 0%, var(--ink) 38%, #050706 100%) !important;
   color: var(--text) !important;
   font-family:
     Inter,
@@ -62,10 +49,10 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: 0.018;
   background-image:
-    linear-gradient(rgba(83, 252, 24, 0.55) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(83, 252, 24, 0.55) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, #000, transparent 78%);
 }
@@ -156,10 +143,9 @@ button:disabled {
 }
 
 .account {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  min-height: 72px;
+  position: relative;
+  z-index: 20;
+  min-height: 64px;
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -167,10 +153,10 @@ button:disabled {
   margin: 0 -32px !important;
   padding: 12px 32px !important;
   border-bottom: 1px solid var(--line) !important;
-  background: rgba(6, 12, 8, 0.9) !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+  background: rgba(7, 10, 8, 0.92) !important;
+  box-shadow: none;
   color: var(--muted) !important;
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(14px);
 }
 
 .dashboard-brand {
@@ -184,15 +170,15 @@ button:disabled {
 }
 
 .dashboard-brand > span {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(83, 252, 24, 0.28);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--green-soft);
+  background: #151a16;
   color: var(--green);
-  box-shadow: inset 0 0 16px rgba(83, 252, 24, 0.07);
+  box-shadow: none;
 }
 
 .dashboard-brand strong {
@@ -232,8 +218,13 @@ button:disabled {
 }
 
 .account-actions a {
+  color: #b8c4bb;
   font-weight: 850;
   text-decoration: none;
+}
+
+.account-actions a:hover {
+  color: #fff;
 }
 
 .account-actions a + a {
@@ -256,22 +247,22 @@ button:disabled {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--green);
+  color: #b8c4bb;
   font-size: 12px;
   font-weight: 850;
 }
 
 .dashboard-nav {
   position: sticky;
-  top: 72px;
+  top: 0;
   z-index: 45;
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  margin: 0 -32px 26px;
-  padding: 9px 32px;
+  margin: 0 -32px 20px;
+  padding: 8px 32px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(7, 13, 9, 0.88);
+  background: rgba(7, 10, 8, 0.9);
   scrollbar-width: none;
   backdrop-filter: blur(18px);
 }
@@ -307,9 +298,9 @@ button:disabled {
 }
 
 .dashboard-nav a[aria-current="page"] {
-  border-color: rgba(83, 252, 24, 0.24);
-  background: rgba(83, 252, 24, 0.12);
-  color: var(--green);
+  border-color: rgba(83, 252, 24, 0.18);
+  background: rgba(83, 252, 24, 0.08);
+  color: #dff4e3;
 }
 
 .dashboard-nav a > span {
@@ -318,38 +309,41 @@ button:disabled {
 
 .dashboard-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
   gap: 18px;
   align-items: stretch;
   margin: 0 0 18px;
-  scroll-margin-top: 150px;
+  scroll-margin-top: 62px;
 }
 
 .dashboard-intro,
 .dashboard-health {
   position: relative;
   border: 1px solid var(--line);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
+  border-radius: 16px;
+  box-shadow: none;
 }
 
 .dashboard-intro {
-  min-height: 280px;
+  min-height: 190px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   overflow: hidden;
   isolation: isolate;
-  padding: 34px;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(5, 10, 7, 0.98) 4%,
-      rgba(5, 10, 7, 0.91) 48%,
-      rgba(5, 10, 7, 0.56) 100%
-    ),
-    linear-gradient(0deg, rgba(5, 9, 6, 0.35), rgba(5, 9, 6, 0.1)),
-    url("/assets/neon-arcade-studio-v2.webp") 65% center / cover no-repeat;
+  padding: 28px;
+  background: var(--panel);
+}
+
+.dashboard-intro::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background: url("/assets/neon-arcade-studio-v2.webp") 70% center / cover no-repeat;
+  opacity: 0.26;
+  filter: saturate(0.52) brightness(0.58);
 }
 
 .dashboard-intro::after {
@@ -358,13 +352,7 @@ button:disabled {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    radial-gradient(
-      circle at 80% 25%,
-      rgba(83, 252, 24, 0.16),
-      transparent 28%
-    ),
-    linear-gradient(180deg, transparent 58%, rgba(5, 9, 6, 0.48));
+  background: linear-gradient(90deg, #0f1410 8%, #0f1410e8 54%, #0f141080);
 }
 
 .dashboard-intro > small {
@@ -386,8 +374,8 @@ button:disabled {
   max-width: 760px;
   margin: 0 !important;
   color: #fff;
-  font-size: clamp(38px, 4.4vw, 62px) !important;
-  line-height: 1.02;
+  font-size: clamp(34px, 3.8vw, 46px) !important;
+  line-height: 1.05;
   letter-spacing: -0.052em;
   text-wrap: balance;
   overflow-wrap: anywhere;
@@ -396,8 +384,8 @@ button:disabled {
 .dashboard-intro > p {
   max-width: 680px;
   margin: 16px 0 0;
-  color: #c4d1c7;
-  font-size: 15px;
+  color: #b3beb5;
+  font-size: 14px;
 }
 
 .dashboard-health {
@@ -405,13 +393,7 @@ button:disabled {
   flex-direction: column;
   gap: 17px;
   padding: 25px;
-  background:
-    radial-gradient(
-      circle at 110% -10%,
-      rgba(83, 252, 24, 0.13),
-      transparent 45%
-    ),
-    linear-gradient(145deg, #111a14, #0a110d);
+  background: var(--panel);
 }
 
 .dashboard-card-heading {
@@ -474,9 +456,17 @@ button:disabled {
   white-space: nowrap;
 }
 
+.connection-row .status:not(.warning) + .button {
+  border: 1px solid var(--line-soft) !important;
+  background: #202b24 !important;
+  color: #f4fff5 !important;
+}
+
 .maintenance {
-  display: grid !important;
-  gap: 3px;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin: 0 !important;
   padding: 13px 14px !important;
   border: 1px solid var(--line-soft) !important;
@@ -500,34 +490,29 @@ button:disabled {
 .copy,
 form {
   border-color: var(--line) !important;
-  background: linear-gradient(
-    145deg,
-    rgba(16, 25, 19, 0.96),
-    rgba(9, 15, 11, 0.96)
-  ) !important;
-  box-shadow: var(--shadow);
+  background: var(--panel) !important;
+  box-shadow: none;
 }
 
 .guide {
   position: relative;
   margin-top: 18px !important;
-  padding: 28px !important;
+  padding: 26px !important;
   border-radius: var(--radius) !important;
-  scroll-margin-top: 150px;
+  scroll-margin-top: 62px;
 }
 
 .guide > h2,
 .panel-title h2 {
-  margin: 8px 0 5px !important;
-  font-size: clamp(24px, 2.7vw, 32px) !important;
+  margin: 0 0 5px !important;
+  font-size: clamp(23px, 2.5vw, 30px) !important;
   line-height: 1.08;
   letter-spacing: -0.035em;
 }
 
 .guide > .pill,
 .panel-title .pill {
-  font-size: 10px !important;
-  letter-spacing: 0.11em;
+  display: none !important;
 }
 
 .muted {
@@ -554,9 +539,9 @@ form {
   align-items: center;
   gap: 7px;
   padding: 6px 10px;
-  border: 1px solid rgba(83, 252, 24, 0.18);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(83, 252, 24, 0.06);
+  background: #151a16;
   color: #b9c9bd;
   font-size: 11px;
   font-weight: 800;
@@ -584,7 +569,7 @@ form {
   gap: 9px 12px !important;
   align-items: center !important;
   margin: 0 !important;
-  padding: 17px !important;
+  padding: 16px !important;
   border-radius: 14px !important;
   box-shadow: none;
 }
@@ -838,6 +823,52 @@ form {
   margin-top: 18px;
 }
 
+.resource-panel {
+  padding: 0 !important;
+}
+
+.resource-details {
+  padding: 0;
+}
+
+.resource-details > summary {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  cursor: pointer;
+  list-style: none;
+  color: #eef5f0;
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.resource-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.resource-details > summary::after {
+  content: "+";
+  color: #95a299;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.resource-details[open] > summary::after {
+  content: "−";
+}
+
+.resource-details > :not(summary) {
+  margin-right: 22px;
+  margin-left: 22px;
+}
+
+.resource-details > :last-child {
+  margin-bottom: 22px !important;
+}
+
 .dashboard-operations > .guide {
   margin-top: 0 !important;
 }
@@ -905,7 +936,7 @@ form {
 
 @media (max-width: 900px) {
   html {
-    scroll-padding-top: 70px;
+    scroll-padding-top: 62px;
   }
 
   .dashboard-main {
@@ -932,7 +963,7 @@ form {
   }
 
   .dashboard-intro {
-    min-height: 255px;
+    min-height: 180px;
   }
 
   .dashboard-health {
@@ -943,6 +974,7 @@ form {
 
   .dashboard-health .readiness-list {
     grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .maintenance {
@@ -990,12 +1022,12 @@ form {
   }
 
   .dashboard-intro {
-    min-height: 245px;
-    padding: 25px;
+    min-height: 175px;
+    padding: 24px;
   }
 
   .dashboard-intro h1 {
-    font-size: clamp(35px, 10vw, 50px) !important;
+    font-size: clamp(32px, 9vw, 42px) !important;
   }
 
   .dashboard-health {
@@ -1028,12 +1060,17 @@ form {
   }
 
   .dashboard-intro {
-    min-height: 280px;
+    min-height: 190px;
     background-position: 72% center;
   }
 
   .dashboard-intro > p {
     font-size: 14px;
+  }
+
+  .maintenance {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .connection-row {
@@ -1111,7 +1148,7 @@ form {
   }
 
   .dashboard-intro h1 {
-    font-size: 34px !important;
+    font-size: 32px !important;
   }
 }
 
@@ -1133,16 +1170,7 @@ form {
 }
 
 .live-control::before {
-  content: "";
-  position: absolute;
-  width: 360px;
-  height: 260px;
-  top: -160px;
-  left: 12%;
-  border-radius: 50%;
-  background: #53fc1818;
-  filter: blur(55px);
-  pointer-events: none;
+  content: none;
 }
 
 .live-control-status {
@@ -1174,7 +1202,7 @@ form {
 
 .readiness-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 12px 0;
 }
@@ -1207,6 +1235,10 @@ form {
   color: #75ff49;
 }
 
+.readiness-check.ready small {
+  display: none;
+}
+
 .readiness-check.warning > span {
   background: #ffb44d1c;
   color: #ffca78;
@@ -1223,6 +1255,10 @@ form {
 .readiness-check b {
   color: #f3faf5;
   font-size: 12px;
+  line-height: 1.2;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .readiness-check small {
@@ -1258,9 +1294,7 @@ form {
 
 .live-round-card.active {
   border-color: #53fc1875;
-  box-shadow:
-    inset 0 0 45px #53fc1809,
-    0 0 28px #53fc180c;
+  box-shadow: inset 0 0 35px #53fc1808;
 }
 
 .live-round-card.finished {
@@ -1422,7 +1456,7 @@ form {
   }
 
   .readiness-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-save-bar {

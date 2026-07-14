@@ -33,7 +33,7 @@
     brand.href = "/dashboard";
     brand.setAttribute("aria-label", "Emoji Decoder dashboard home");
     brand.innerHTML =
-      '<span aria-hidden="true">⚡</span><strong>Emoji Decoder</strong><small>Cloud Beta</small>';
+      '<span aria-hidden="true">⚡</span><strong>Emoji Decoder</strong>';
     account.prepend(brand);
     main.prepend(account);
 
@@ -53,7 +53,7 @@
     nav.className = "dashboard-nav";
     nav.setAttribute("aria-label", "Dashboard sections");
     nav.innerHTML =
-      '<a href="#top" aria-current="page"><span aria-hidden="true">⌂</span>Overview</a><a href="#sources"><span aria-hidden="true">◫</span>OBS sources</a><a href="#insights"><span aria-hidden="true">↗</span>Insights</a><a href="#game"><span aria-hidden="true">⚙</span>Game settings</a><a href="#testing"><span aria-hidden="true">◇</span>Guest testing</a><a href="#appearance"><span aria-hidden="true">✦</span>Appearance</a>';
+      '<a href="#live-control" aria-current="page"><span aria-hidden="true">●</span>Live</a><a href="#sources"><span aria-hidden="true">◫</span>OBS</a><a href="#game"><span aria-hidden="true">⚙</span>Game</a><a href="#community"><span aria-hidden="true">◎</span>Community</a><a href="#appearance"><span aria-hidden="true">✦</span>Appearance</a>';
     account.after(nav);
 
     const eyebrow = main.querySelector(":scope > small");
@@ -72,14 +72,14 @@
 
     const intro = document.createElement("div");
     intro.className = "dashboard-intro";
-    if (eyebrow) intro.append(eyebrow);
+    eyebrow?.remove();
     if (title) {
       title.id = "dashboard-title";
       intro.append(title);
     }
     const introCopy = document.createElement("p");
     introCopy.textContent =
-      "Everything you need to run Emoji Decoder, check performance, and keep your stream overlay looking sharp.";
+      "Run the game, check OBS and adjust what viewers see.";
     intro.append(introCopy);
 
     const health = document.createElement("article");
@@ -97,7 +97,7 @@
     nav.after(overview);
 
     const sourcesHeading = [...main.querySelectorAll(":scope > h2")].find(
-      (node) => node.textContent.trim() === "OBS Browser Sources",
+      (node) => node.textContent.trim() === "OBS sources",
     );
     if (sourcesHeading) {
       const copies = [...main.querySelectorAll(":scope > .copy")];
@@ -190,12 +190,6 @@
       popup.before(slot);
       slot.append(popup);
     }
-
-    const footer = document.createElement("footer");
-    footer.className = "dashboard-footer";
-    footer.innerHTML =
-      '<span>Emoji Decoder Cloud Beta</span><span><a href="/about">Public page</a><form class="logout-form" method="post" action="/logout"><button type="submit">Log out</button></form></span>';
-    main.append(footer);
 
     document
       .querySelector("#copy-command-list")
@@ -444,7 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!game) return;
   const section = document.createElement("section");
   section.className = "guide community-settings";
-  section.innerHTML = `<span class="pill">COMMUNITY GOAL</span><h2>Everyone builds the reward</h2><p class="muted">Each correct viewer adds progress across rounds. Reaching the target activates double points for every player.</p><div class="community-dashboard-grid"><label class="switch-row"><span><b>Enable community goal</b><small>Keep shared progress between rounds</small></span><input type="checkbox" name="communityEnabled"></label><label>Correct answers needed <output data-community-output="target"></output><input type="range" name="communityTarget" min="5" max="250" step="5"></label><label>Double-points duration <output data-community-output="reward"></output><input type="range" name="communityRewardMinutes" min="1" max="15" step="1"></label></div><div class="community-preview"><div><b id="community-preview-label">Community progress</b><span id="community-preview-value">0 / 25</span></div><div><i id="community-preview-fill"></i></div><small id="community-completions">0 goals completed</small></div><button type="button" id="save-community">Save community goal</button><p id="community-status" role="status"></p>`;
+  section.innerHTML = `<span class="pill">COMMUNITY GOAL</span><h2>Community goal</h2><p class="muted">Each correct viewer adds progress. Reaching the target activates double points for everyone.</p><div class="community-dashboard-grid"><label class="switch-row"><span><b>Enable community goal</b><small>Keep shared progress between rounds</small></span><input type="checkbox" name="communityEnabled"></label><label>Correct answers needed <output data-community-output="target"></output><input type="range" name="communityTarget" min="5" max="250" step="5"></label><label>Double-points duration <output data-community-output="reward"></output><input type="range" name="communityRewardMinutes" min="1" max="15" step="1"></label></div><div class="community-preview"><div><b id="community-preview-label">Community progress</b><span id="community-preview-value">0 / 25</span></div><div><i id="community-preview-fill"></i></div><small id="community-completions">0 goals completed</small></div><button type="button" id="save-community">Save community goal</button><p id="community-status" role="status"></p>`;
   game.after(section);
   const enabled = section.querySelector('[name="communityEnabled"]'),
     target = section.querySelector('[name="communityTarget"]'),
@@ -541,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const section = document.createElement("section");
   section.className = "guide guest-manager";
   section.innerHTML =
-    '<span class="pill">GUEST TEST MODE</span><h2>Let a friend test without Kick</h2><p class="muted">Create a private 24-hour Test Lab with isolated scores and temporary OBS links. Your friend never sees your dashboard, Kick connection or permanent overlay URLs.</p><div id="guest-sessions"><p class="muted">Loading guest sessions…</p></div><button type="button" id="create-guest">Create 24-hour guest test</button><p id="guest-manager-status" role="status"></p>';
+    '<span class="pill">GUEST TEST MODE</span><h2>Guest testing</h2><p class="muted">Create a private 24-hour Test Lab with isolated scores and temporary OBS links.</p><div id="guest-sessions"><p class="muted">Loading guest sessions…</p></div><button type="button" id="create-guest">Create 24-hour guest test</button><p id="guest-manager-status" role="status"></p>';
   customizer.before(section);
   const list = section.querySelector("#guest-sessions"),
     status = section.querySelector("#guest-manager-status"),
@@ -624,7 +618,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!customizer) return;
   const section = document.createElement("section");
   section.className = "guide game-settings";
-  section.innerHTML = `<span class="pill">GAME CONTROLS</span><h2>How your rounds play</h2><p class="muted">Choose a preset or tune the game. Saved changes apply to future rounds and your existing OBS sources automatically.</p><input type="hidden" name="preset" value="custom"><div class="game-presets" role="group" aria-label="Game presets"><button type="button" data-game-preset="casual">Casual</button><button type="button" data-game-preset="competitive">Competitive</button><button type="button" data-game-preset="fast">Fast-paced</button><button type="button" data-game-preset="large">Large audience</button><button type="button" class="secondary" data-game-preset="custom">Custom</button></div><div class="game-grid"><label class="switch-row"><span><b>Automatic rounds</b><small>Start without streamer commands</small></span><input type="checkbox" name="automatic"></label><label>Round frequency <output data-game-output="frequencyMinutes"></output><input type="range" name="frequencyMinutes" min="5" max="60" step="1"></label><label>Time to answer <output data-game-output="roundSeconds"></output><input type="range" name="roundSeconds" min="30" max="90" step="5"></label><label>Jackpot chance <output data-game-output="jackpotChance"></output><input type="range" name="jackpotChance" min="0" max="50" step="5"></label><label>Minimum difficulty<select name="minDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label>Maximum difficulty<select name="maxDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label class="switch-row"><span><b>Progressive clues</b><small>Reveal more emojis as time passes</small></span><input type="checkbox" name="progressiveReveals"></label></div><fieldset class="category-picker"><legend>Puzzle categories</legend><div id="game-categories"></div></fieldset><div class="game-summary" id="game-summary">Loading settings…</div><button type="button" id="save-game-settings">Save game settings</button><p id="game-settings-status" role="status"></p>`;
+  section.innerHTML = `<span class="pill">GAME CONTROLS</span><h2>Game settings</h2><p class="muted">Choose a preset or tune future rounds. Existing OBS sources update automatically.</p><input type="hidden" name="preset" value="custom"><div class="game-presets" role="group" aria-label="Game presets"><button type="button" data-game-preset="casual">Casual</button><button type="button" data-game-preset="competitive">Competitive</button><button type="button" data-game-preset="fast">Fast-paced</button><button type="button" data-game-preset="large">Large audience</button><button type="button" class="secondary" data-game-preset="custom">Custom</button></div><div class="game-grid"><label class="switch-row"><span><b>Automatic rounds</b><small>Start without streamer commands</small></span><input type="checkbox" name="automatic"></label><label>Round frequency <output data-game-output="frequencyMinutes"></output><input type="range" name="frequencyMinutes" min="5" max="60" step="1"></label><label>Time to answer <output data-game-output="roundSeconds"></output><input type="range" name="roundSeconds" min="30" max="90" step="5"></label><label>Jackpot chance <output data-game-output="jackpotChance"></output><input type="range" name="jackpotChance" min="0" max="50" step="5"></label><label>Minimum difficulty<select name="minDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label>Maximum difficulty<select name="maxDifficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label><label class="switch-row"><span><b>Progressive clues</b><small>Reveal more emojis as time passes</small></span><input type="checkbox" name="progressiveReveals"></label></div><fieldset class="category-picker"><legend>Puzzle categories</legend><div id="game-categories"></div></fieldset><div class="game-summary" id="game-summary">Loading settings…</div><button type="button" id="save-game-settings">Save game settings</button><p id="game-settings-status" role="status"></p>`;
   customizer.before(section);
   const status = section.querySelector("#game-settings-status"),
     summary = section.querySelector("#game-summary"),
@@ -765,7 +759,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const section = document.createElement("section");
   section.className = "guide round-insights";
   section.innerHTML =
-    '<span class="pill">ROUND INSIGHTS</span><h2>What your viewers are solving</h2><p class="muted">A private 30-day snapshot of participation, speed and difficulty. New rounds appear here when they finish.</p><div id="insight-content"><p class="muted">Loading round history…</p></div>';
+    '<span class="pill">ROUND INSIGHTS</span><h2>Round insights</h2><p class="muted">A private 30-day view of participation, speed and difficulty.</p><div id="insight-content"><p class="muted">Loading round history…</p></div>';
   game.before(section);
   const content = section.querySelector("#insight-content"),
     safe = (value) =>

@@ -159,7 +159,7 @@
   --glow: 35px;
   --scale: 1;
   position: sticky;
-  top: 134px;
+  top: 70px;
   min-height: 455px;
   display: flex;
   flex-direction: column;
@@ -291,7 +291,7 @@
 }
 
 .guest-manager {
-  border-color: #3b5b42 !important;
+  border-color: var(--line) !important;
 }
 
 .guest-manager > h2 {
@@ -341,7 +341,7 @@
 }
 
 .game-settings {
-  border-color: #426d4a !important;
+  border-color: var(--line) !important;
 }
 
 .game-presets {
@@ -354,7 +354,7 @@
 .game-presets button.active {
   border-color: #53fc18;
   background: #53fc18;
-  box-shadow: 0 0 18px rgba(83, 252, 24, 0.25);
+  box-shadow: none;
   color: #071008;
 }
 
@@ -378,7 +378,7 @@
 
 .game-grid label output {
   justify-self: end;
-  color: #53fc18;
+  color: #d5e0d8;
   font-weight: 850;
 }
 
@@ -469,7 +469,7 @@
 }
 
 .round-insights {
-  border-color: #365c45 !important;
+  border-color: var(--line) !important;
 }
 
 .insight-cards {
@@ -497,7 +497,7 @@
 }
 
 .insight-cards b {
-  color: #53fc18;
+  color: #eef5f0;
   font-size: clamp(20px, 2.1vw, 27px);
   line-height: 1.1;
   overflow-wrap: anywhere;
@@ -716,7 +716,7 @@
 }
 
 .community-settings {
-  border-color: #56733a !important;
+  border-color: var(--line) !important;
 }
 
 .community-dashboard-grid {
@@ -746,7 +746,7 @@
 
 .community-dashboard-grid output {
   justify-self: end;
-  color: #53fc18;
+  color: #d5e0d8;
   font-weight: 850;
 }
 

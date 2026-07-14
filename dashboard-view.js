@@ -26,11 +26,11 @@ function renderDashboard({ tenant, theme, version }) {
       <span>Signed in as <b>${escapeHtml(tenant.channel_name)}</b></span>
       <span><a href="/about">Public page</a><form class="logout-form" method="post" action="/logout"><button type="submit">Log out</button></form></span>
     </div>
-    <div class="maintenance"><b>✓ Automatic updates active</b><span>Kick tokens and chat subscriptions are maintained automatically · Version ${escapeHtml(version)}</span></div>
+    <div class="maintenance"><b>✓ Updates active</b><span>Version ${escapeHtml(version)}</span></div>
     <div class="status">${tenant.kick_access_token ? "✓ Kick connected" : "○ Connect Kick to start"}</div>
     <a class="button" href="/auth/kick">${tenant.kick_access_token ? "Reconnect Kick" : "Connect Kick"}</a>
 
-    <h2>OBS Browser Sources</h2>
+    <h2>OBS sources</h2>
     ${sourceRow("Game overlay", "overlay", "overlay.html")}
     ${sourceRow("Scoreboard", "scoreboard", "scoreboard.html")}
     <button type="button" class="secondary" id="copy-both-obs">Copy both URLs</button>
@@ -39,7 +39,7 @@ function renderDashboard({ tenant, theme, version }) {
 
     <section class="guide customizer" id="overlay-customizer">
       <span class="pill">OVERLAY CUSTOMIZER</span>
-      <h2>Make it yours</h2>
+      <h2>Overlay appearance</h2>
       <p class="muted">Saved changes automatically appear in your existing OBS sources—no links need replacing.</p>
       <div class="theme-layout">
         <div>
@@ -82,16 +82,16 @@ function renderDashboard({ tenant, theme, version }) {
       </div>
     </section>
 
-    <section class="guide">
+    <section class="guide resource-guide">
       <span class="pill">CLOUD SETUP</span>
-      <h2>Install in OBS</h2>
-      <ol><li>In OBS, add a <b>Browser Source</b> to your streaming scene.</li><li>Paste the <b>Game overlay</b> URL and set it to <b>1920 × 1080</b>.</li><li>Add the <b>Scoreboard</b> URL as a second Browser Source above it.</li><li>Use <b>Live Control</b> above to run a private visual check.</li></ol>
+      <details class="resource-details"><summary>OBS setup guide</summary>
+      <ol><li>In OBS, add a <b>Browser Source</b> to your streaming scene.</li><li>Paste the <b>Game overlay</b> URL and set it to <b>1920 × 1080</b>.</li><li>Add the <b>Scoreboard</b> URL as a second Browser Source above it.</li><li>Use <b>Live Control</b> above to run a private visual check.</li></ol></details>
     </section>
-    <section class="guide">
+    <section class="guide resource-guide">
       <span class="pill">VIEWER GUIDE</span>
-      <h2>Chat commands</h2>
+      <details class="resource-details"><summary>Viewer commands</summary>
       <div class="commands"><div><code>!commands</code><span>Show commands</span></div><div><code>!rank</code><span>Leaderboard position</span></div><div><code>!profile</code><span>Points, wins and streak</span></div><div><code>!scoreboard</code><span>Weekly leaderboard</span></div><div><code>!badges</code><span>Achievements</span></div><div><code>!jackpot</code><span>Current jackpot</span></div></div>
-      <button type="button" id="copy-command-list">Copy command list</button>
+      <button type="button" id="copy-command-list">Copy command list</button></details>
     </section>
 
     <script type="application/json" id="dashboard-theme-data">${themeJson}</script>

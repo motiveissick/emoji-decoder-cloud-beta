@@ -138,8 +138,8 @@
         Menu
       </button>
       <nav id="main-nav" aria-label="Primary navigation">
-        <a href="#features">Features</a><a href="#setup">Setup</a
-        ><a href="#commands">Commands</a><a href="#faq">FAQ</a
+        <a href="#features">Features</a><a href="#setup">How it works</a
+        ><a href="#faq">FAQ</a
         ><a href="/login">Sign in</a
         ><a class="button small" href="/join">Join beta</a>
       </nav>
@@ -147,23 +147,20 @@
     <main id="main">
       <section class="hero">
         <div class="hero-backdrop" aria-hidden="true"></div>
-        <div class="floaters" aria-hidden="true">
-          <span>👑</span><span>🎮</span><span>🔥</span><span>🏆</span>
-        </div>
         <div class="hero-copy">
           <span class="eyebrow">BUILT FOR KICK STREAMERS</span>
-          <h1>Turn your Kick chat into a <em>live game.</em></h1>
+          <h1>Turn Kick chat into a live <em>game.</em></h1>
           <p>
-            Launch automatic emoji puzzles, reward fast answers and give every
-            viewer a reason to stay, play and climb the leaderboard.
+            Run automatic emoji puzzles, reward fast answers and give viewers
+            a reason to stay, play and return.
           </p>
           <div class="actions">
             <a class="button" href="/join">Join the private beta <b>→</b></a
-            ><a class="secondary" href="/login">Streamer sign in</a>
+            ><a class="secondary" href="/trailer">Watch the demo</a>
           </div>
           <div class="proof">
-            <span>✓ No downloads</span><span>✓ Cloud hosted</span
-            ><span>✓ Automatic updates</span>
+            <span>No downloads</span><span>Cloud hosted</span
+            ><span>Automatic updates</span>
           </div>
         </div>
         <a
@@ -171,13 +168,9 @@
           href="/trailer"
           aria-label="Watch the Emoji Decoder trailer"
           ><div class="demo-chrome">
-            <span>● ● ●</span><b>LIVE OVERLAY PREVIEW</b><strong>● LIVE</strong>
+            <span>● ● ●</span><b>OVERLAY PREVIEW</b><strong>● LIVE</strong>
           </div>
           <div class="demo-stage">
-            <div class="challenge">
-              <small>COMMUNITY CHALLENGE</small><b>Crowd Solver</b
-              ><span>7 / 10 correct viewers</span><i><em></em></i>
-            </div>
             <div class="game-card">
               <div class="game-meta">
                 <span>FILM · EASY</span><strong>12.8</strong>
@@ -230,8 +223,7 @@
 
       <section class="section" id="features">
         <div class="section-heading">
-          <span class="eyebrow">A GAME LOOP FOR COMMUNITY</span>
-          <h2>More than another stream pop-up.</h2>
+          <h2>A game loop built for community.</h2>
           <p>
             Every feature gives viewers another reason to answer, return and
             compete.
@@ -275,8 +267,7 @@
 
       <section class="section setup" id="setup">
         <div>
-          <span class="eyebrow">STREAMER SETUP</span>
-          <h2>Live in three simple steps.</h2>
+          <h2>Live in three steps.</h2>
           <p>
             No executable, server or technical maintenance. Emoji Decoder runs
             securely in the cloud.
@@ -309,7 +300,6 @@
 
       <section class="section commands-section" id="commands">
         <div>
-          <span class="eyebrow">VIEWER-POWERED</span>
           <h2>Simple commands. Instant feedback.</h2>
           <p>
             Viewers never need another app. Everything happens inside the chat
@@ -319,29 +309,23 @@
         <div class="commands">
           <code>!rank <span>See leaderboard position</span></code
           ><code>!scoreboard <span>Show the top ten on stream</span></code
-          ><code>!jackpot <span>Reveal the community prize</span></code
-          ><code>!badges <span>Show unlocked achievements</span></code
-          ><code>!profile <span>View personal statistics</span></code
-          ><code>!commands <span>See all available commands</span></code>
+          ><code>!jackpot <span>Reveal the community prize</span></code>
         </div>
       </section>
 
       <section class="security section">
         <div class="shield">🛡</div>
         <div>
-          <span class="eyebrow">SECURE CLOUD HOSTING</span>
-          <h2>Private links and automatic maintenance.</h2>
+          <h2>Private by default.</h2>
           <p>
-            Kick tokens are encrypted, streamer accounts are isolated, webhook
-            deliveries are verified and each channel receives revocable private
-            OBS overlay links.
+            Encrypted Kick tokens, isolated accounts and revocable OBS links
+            keep each streamer's setup separate and secure.
           </p>
         </div>
       </section>
 
       <section class="section faq" id="faq">
         <div class="section-heading">
-          <span class="eyebrow">QUESTIONS, ANSWERED</span>
           <h2>Before you go live.</h2>
         </div>
         <details>
@@ -372,7 +356,6 @@
       </section>
 
       <section class="cta">
-        <span class="eyebrow">PRIVATE CLOUD BETA</span>
         <h2>Give your chat something to play for.</h2>
         <p>
           Join the invited streamer beta and turn quiet moments into community
@@ -388,8 +371,7 @@
       <a class="logo" href="/about"><span>⚡</span> EMOJI <b>DECODER</b></a
       ><span>Competitive chat games for Kick.</span>
       <nav aria-label="Footer navigation">
-        <a href="#features">Features</a><a href="/trailer">Trailer</a
-        ><a href="/login">Sign in</a>
+        <a href="/login">Sign in</a><a href="/join">Join beta</a>
       </nav>
     </footer>
     <script>
@@ -414,7 +396,7 @@
         }
       });
       addEventListener("resize", () => {
-        if (innerWidth > 760) closeMenu();
+        if (innerWidth > 900) closeMenu();
       });
     </script>
   </body>
