@@ -22,6 +22,45 @@
         <div class="label" id="label">EMOJI DECODER</div>
         <div id="emojis" class="emojis"></div>
         <div id="prompt" class="prompt">Everyone can score</div>
+        <section
+          id="result-sequence"
+          class="result-sequence off"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div class="result-step result-answer">
+            <span class="result-kicker">THE ANSWER</span>
+            <strong id="result-answer"></strong>
+            <small>Round complete</small>
+          </div>
+          <div class="result-step result-winner">
+            <span class="result-kicker">ROUND WINNER</span>
+            <strong id="result-winner-name"></strong>
+            <div class="winner-meta">
+              <span
+                ><b id="result-winner-speed"></b
+                ><small id="result-winner-speed-label"> solve</small></span
+              >
+              <span
+                ><b id="result-winner-points"></b
+                ><small id="result-winner-points-label"> points</small></span
+              >
+            </div>
+          </div>
+          <div class="result-step result-podium">
+            <span class="result-kicker">TOP SOLVERS</span>
+            <div id="result-podium" class="podium"></div>
+          </div>
+          <div class="result-step result-next">
+            <span class="result-kicker">NEXT ROUND</span>
+            <strong id="result-next-countdown"></strong>
+            <small id="result-next-note"></small>
+          </div>
+          <div class="result-progress" aria-hidden="true">
+            <i id="result-progress-1"></i><i id="result-progress-2"></i
+            ><i id="result-progress-3"></i><i id="result-progress-4"></i>
+          </div>
+        </section>
         <div id="community" class="community">
           <div>
             <span id="community-label">COMMUNITY GOAL</span

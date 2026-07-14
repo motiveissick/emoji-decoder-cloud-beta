@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "db:migrate": "node migrate.js",
-    "check": "node --check server.js && node --check dashboard-view.js && node --check public/dashboard-customizer.js && node --check public/dashboard-live.js && node --check public/dashboard-sources.js && node --check public/dashboard-dirty.js && node --check public/cloud-overlay.js && node --check public/cloud-scoreboard.js",
+    "check": "node --check server.js && node --check dashboard-view.js && node --check public/dashboard-customizer.js && node --check public/dashboard-live.js && node --check public/dashboard-sources.js && node --check public/dashboard-puzzles.js && node --check public/dashboard-mode.js && node --check public/dashboard-setup.js && node --check public/dashboard-dirty.js && node --check public/cloud-overlay.js && node --check public/cloud-scoreboard.js",
     "test": "node --test",
     "verify": "npm run check && npm test"
   },

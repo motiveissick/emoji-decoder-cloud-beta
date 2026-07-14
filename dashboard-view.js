@@ -21,6 +21,7 @@ function renderDashboard({ tenant, theme, version }) {
   return `
     <link rel="stylesheet" href="/dashboard-customizer.css">
     <link rel="stylesheet" href="/dashboard-shell.css">
+    <link rel="stylesheet" href="/dashboard-setup.css">
 
     <div class="account">
       <span>Signed in as <b>${escapeHtml(tenant.channel_name)}</b></span>
@@ -90,7 +91,7 @@ function renderDashboard({ tenant, theme, version }) {
     <section class="guide resource-guide">
       <span class="pill">VIEWER GUIDE</span>
       <details class="resource-details"><summary>Viewer commands</summary>
-      <div class="commands"><div><code>!commands</code><span>Show commands</span></div><div><code>!rank</code><span>Leaderboard position</span></div><div><code>!profile</code><span>Points, wins and streak</span></div><div><code>!scoreboard</code><span>Weekly leaderboard</span></div><div><code>!badges</code><span>Achievements</span></div><div><code>!jackpot</code><span>Current jackpot</span></div></div>
+      <div class="commands"><div><code>!commands</code><span>Show commands</span></div><div><code>!rank season</code><span>Season position</span></div><div><code>!profile</code><span>Points, wins and streak</span></div><div><code>!scoreboard season</code><span>Season leaderboard</span></div><div><code>!challenge</code><span>Daily and weekly goals</span></div><div><code>!badges</code><span>Achievements</span></div><div><code>!jackpot</code><span>Current jackpot</span></div></div>
       <button type="button" id="copy-command-list">Copy command list</button></details>
     </section>
 
@@ -98,6 +99,9 @@ function renderDashboard({ tenant, theme, version }) {
     <script src="/dashboard-customizer.js"></script>
     <script src="/dashboard-live.js"></script>
     <script src="/dashboard-sources.js"></script>
+    <script src="/dashboard-puzzles.js"></script>
+    <script src="/dashboard-mode.js"></script>
+    <script src="/dashboard-setup.js"></script>
     <script src="/dashboard-dirty.js"></script>
   `;
 }

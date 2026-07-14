@@ -177,3 +177,154 @@ footer b {
   text-align: center;
   line-height: 1.45;
 }
+
+.challenge-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.challenge-list[hidden] {
+  display: none;
+}
+.challenge-item {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 68px;
+  padding: 10px 12px;
+  border: 1px solid #29352c;
+  border-radius: 12px;
+  background: #121a14;
+}
+.challenge-item.complete {
+  border-color: color-mix(
+    in srgb,
+    var(--theme-primary, #53fc18) 35%,
+    #29352c
+  );
+  background: color-mix(
+    in srgb,
+    var(--theme-primary, #53fc18) 7%,
+    #121a14
+  );
+}
+.challenge-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #1c261f;
+  font-size: 20px;
+}
+.challenge-copy {
+  min-width: 0;
+}
+.challenge-copy > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.challenge-copy b {
+  overflow: hidden;
+  color: #f2f6f3;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.challenge-copy small {
+  flex: none;
+  color: #829087;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+.challenge-copy p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 2px 0 6px;
+  color: #98a59b;
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: left;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+.challenge-track {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #273129;
+}
+.challenge-track i {
+  display: block;
+  width: var(--challenge-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--theme-primary, #53fc18);
+}
+.challenge-item > strong {
+  min-width: 48px;
+  color: #c7d1c9;
+  font-size: 11px;
+  text-align: right;
+}
+.challenge-item.complete > strong {
+  color: var(--theme-primary, #53fc18);
+}
+.challenge-empty {
+  margin: 0;
+  padding: 18px;
+  border-radius: 12px;
+  background: #121a14;
+  color: #98a59b;
+}
+.challenges-mode .rank-heading > b {
+  max-width: 220px;
+  overflow: hidden;
+  color: #c7d1c9;
+  font-size: 16px;
+  text-overflow: ellipsis;
+}
+.challenges-mode .rank-stats {
+  margin-bottom: 0;
+}
+.challenges-mode #rank-next {
+  margin-top: 11px;
+  font-size: 11px;
+}
+
+@media (max-width: 640px), (max-height: 600px) {
+  .scoreboard,
+  .rank-card {
+    top: 16px;
+    right: 16px;
+    width: min(520px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 20px;
+  }
+  .challenge-list {
+    gap: 6px;
+  }
+  .challenge-item {
+    min-height: 58px;
+    padding: 8px 10px;
+  }
+  .challenge-copy p {
+    display: none;
+  }
+  .challenges-mode .rank-stats {
+    margin-top: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scoreboard,
+  .rank-card,
+  .challenge-track i {
+    transition: none;
+  }
+}

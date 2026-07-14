@@ -189,6 +189,14 @@
         }
       } else dot?.remove();
     });
+    const settingsLabel = document.querySelector(".dashboard-nav-label");
+    if (settingsLabel) {
+      settingsLabel.classList.toggle("has-dirty", Boolean(dirty.size));
+      settingsLabel.dataset.dirtyCount = String(dirty.size);
+      settingsLabel.title = dirty.size
+        ? `${dirty.size} settings section${dirty.size === 1 ? "" : "s"} changed`
+        : "Settings";
+    }
     decorateReadiness();
   }
 

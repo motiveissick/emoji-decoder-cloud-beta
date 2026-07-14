@@ -1164,6 +1164,441 @@ form {
   }
 }
 
+.dashboard-nav-divider {
+  width: 1px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0 3px;
+  background: var(--line);
+}
+
+.dashboard-nav-label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  padding: 0 3px;
+  color: #728078;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.dashboard-nav-label.has-dirty::after {
+  content: attr(data-dirty-count);
+  min-width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #ffbd55;
+  color: #171005;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.dashboard-view[hidden] {
+  display: none !important;
+}
+
+.dashboard-settings-header {
+  min-height: 132px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 0 18px;
+  padding: 27px 29px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(120deg, #101612, #0c110e);
+}
+
+.dashboard-settings-header small {
+  color: #7f9084;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+}
+
+.dashboard-settings-header h1 {
+  margin: 3px 0 4px;
+  font-size: clamp(30px, 4vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.dashboard-settings-header p {
+  max-width: 650px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.dashboard-settings-view > .guide:first-of-type {
+  margin-top: 0 !important;
+}
+
+.dashboard-broadcast-view .dashboard-overview {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.dashboard-broadcast-view .dashboard-intro {
+  display: none;
+}
+
+.dashboard-broadcast-view .dashboard-health {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.55fr) minmax(280px, 0.75fr) minmax(0, 1.7fr);
+  gap: 12px;
+  align-items: center;
+  padding: 13px 15px;
+}
+
+.dashboard-broadcast-view .dashboard-card-heading h2 {
+  font-size: 16px;
+}
+
+.dashboard-broadcast-view .connection-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.dashboard-broadcast-view .connection-row .status,
+.dashboard-broadcast-view .connection-row .button {
+  min-height: 40px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.dashboard-broadcast-view .readiness-list {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.dashboard-broadcast-view .readiness-check {
+  grid-template-columns: 21px minmax(0, 1fr);
+  gap: 6px;
+  padding: 7px;
+}
+
+.dashboard-broadcast-view .readiness-check > span {
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+}
+
+.dashboard-broadcast-view .readiness-check b {
+  font-size: 10px;
+}
+
+.dashboard-broadcast-view .readiness-check small,
+.dashboard-broadcast-view .maintenance {
+  display: none !important;
+}
+
+.dashboard-broadcast-view .live-control {
+  margin-top: 0 !important;
+  padding: 20px !important;
+}
+
+.live-control-head-status {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+}
+
+.live-next-round {
+  color: #91a097;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.live-control-rail {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.live-round-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: -7px 0 14px;
+}
+
+.live-round-metrics > div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid #25342a;
+  border-radius: 10px;
+  background: #0b120d;
+}
+
+.live-round-metrics small {
+  color: #819087;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-round-metrics b {
+  color: #f6fff7;
+  font-size: 16px;
+}
+
+.live-activity {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #2d3d32;
+  border-radius: 16px;
+  background: #080e0ae8;
+}
+
+.live-activity > section + section {
+  padding-top: 11px;
+  border-top: 1px solid #26342b;
+}
+
+.live-activity-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.live-activity-heading h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.live-activity-heading span {
+  color: #839087;
+  font-size: 10px;
+}
+
+.live-activity-heading a {
+  color: #a9b7ad;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.live-next-puzzle-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid rgba(83, 252, 24, 0.16);
+  border-radius: 10px;
+  background: rgba(83, 252, 24, 0.045);
+}
+
+.live-next-puzzle-card > span {
+  min-width: 50px;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  text-align: center;
+}
+
+.live-next-puzzle-card > div {
+  min-width: 0;
+  display: grid;
+}
+
+.live-next-puzzle-card b,
+.live-next-puzzle-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-next-puzzle-card b {
+  color: #f4fff6;
+  font-size: 11px;
+}
+
+.live-next-puzzle-card small {
+  color: #829087;
+  font-size: 9px;
+  text-transform: capitalize;
+}
+
+.live-next-puzzle-card button {
+  min-height: 34px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+.live-correct-feed,
+.live-leader-feed {
+  display: grid;
+  gap: 4px;
+  max-height: 118px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.live-correct-feed li,
+.live-leader-feed li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr) auto auto;
+  gap: 7px;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: #0c140f;
+  color: #87968c;
+  font-size: 10px;
+}
+
+.live-leader-feed li {
+  grid-template-columns: 25px minmax(0, 1fr) auto;
+}
+
+.live-correct-feed li b,
+.live-leader-feed li b {
+  overflow: hidden;
+  color: #eaf3ec;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-correct-feed li strong,
+.live-leader-feed li strong,
+.live-place {
+  color: #70ff45;
+}
+
+.live-correct-feed li.empty,
+.live-leader-feed li.empty {
+  display: block;
+  min-height: 0;
+  padding: 8px;
+  color: #7e8b82;
+  text-align: center;
+}
+
+@media (min-width: 881px) {
+  .dashboard-broadcast-view .live-control-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(350px, 0.78fr);
+    gap: 14px;
+    margin-top: 13px;
+  }
+
+  .dashboard-broadcast-view .live-round-card {
+    min-height: 395px;
+  }
+
+  .dashboard-broadcast-view .live-actions {
+    padding: 14px;
+  }
+}
+
+@media (min-width: 1180px) {
+  .dashboard-broadcast-view .live-control-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(570px, 1fr);
+  }
+
+  .dashboard-broadcast-view .live-control-rail {
+    grid-template-columns: minmax(270px, 0.95fr) minmax(285px, 1.05fr);
+    gap: 10px;
+  }
+
+  .dashboard-broadcast-view .live-actions,
+  .dashboard-broadcast-view .live-activity {
+    padding: 12px;
+  }
+
+  .dashboard-broadcast-view .live-actions,
+  .dashboard-broadcast-view .live-activity {
+    gap: 8px;
+  }
+
+  .dashboard-broadcast-view .live-scoreboard-actions {
+    grid-template-columns: 1fr auto;
+    padding-top: 9px;
+  }
+
+  .dashboard-broadcast-view .live-scoreboard-actions label {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-broadcast-view .live-correct-feed,
+  .dashboard-broadcast-view .live-leader-feed {
+    max-height: 94px;
+  }
+
+  .dashboard-broadcast-view .live-round-emojis {
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+}
+
+@media (max-width: 1120px) {
+  .dashboard-broadcast-view .dashboard-health {
+    grid-template-columns: minmax(190px, 0.7fr) minmax(280px, 1fr);
+  }
+
+  .dashboard-broadcast-view .readiness-list {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-nav-label,
+  .dashboard-nav-divider {
+    display: none;
+  }
+
+  .dashboard-settings-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 22px;
+  }
+
+  .dashboard-settings-header button {
+    align-self: flex-start;
+  }
+
+  .dashboard-broadcast-view .dashboard-health {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-broadcast-view .readiness-list {
+    grid-column: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .live-control-head-status {
+    justify-items: start;
+  }
+}
+
+@media (max-width: 480px) {
+  .live-round-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .live-control-head-status {
+    width: 100%;
+  }
+}
+
 .live-control {
   position: relative;
   overflow: hidden;

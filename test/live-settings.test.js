@@ -74,7 +74,7 @@ function loadServer(query, options = {}) {
     source.lastIndexOf("\npool\n  .query(fs.readFileSync"),
   );
   assert.notEqual(bootstrap, -1, "server bootstrap marker should exist");
-  const instrumented = `${source.slice(0, bootstrap)}\nglobalThis.__server={push,pushGuest,saveGuest,syncActiveGuestSettings,queuedGuestMutation,queuedTenantSettings,runAutomaticRounds,runGuestAutomaticRounds,message,rankingForViewer,unlockBadges,startRound,finishRound,skipRound,showScoreboard,hideScoreboard,dashboardLiveState,dashboardRound,serializeActiveRound,hydrateActiveRound,persistActiveRound,restoreActiveRounds,sameOrigin,BADGES,rounds,rankCards,badgeAlerts,scoreboardStates,sourceConnections,streams,guestStreams,pushQueues,guestPushQueues,guestMessageQueues,tenantSettingsQueues};`;
+  const instrumented = `${source.slice(0, bootstrap)}\nglobalThis.__server={state,guestState,startGuestRound,finishGuestRound,push,pushGuest,saveGuest,syncActiveGuestSettings,queuedGuestMutation,queuedTenantSettings,runAutomaticRounds,runGuestAutomaticRounds,message,rankingForViewer,viewerChallenges,currentSeason,normalizePeriod,scores,unlockBadges,startRound,finishRound,skipRound,showScoreboard,hideScoreboard,dashboardLiveState,dashboardRound,normalizeSetupState,setupState,normalizePuzzleSettings,puzzleSettings,choosePuzzle,puzzleDashboardState,serializeActiveRound,hydrateActiveRound,persistActiveRound,restoreActiveRounds,sameOrigin,BADGES,rounds,guestRounds,rankCards,badgeAlerts,scoreboardStates,sourceConnections,streams,guestStreams,pushQueues,guestPushQueues,guestMessageQueues,tenantSettingsQueues,insightRecommendations:typeof insightRecommendations==="function"?insightRecommendations:null};`;
   const context = vm.createContext({
     require: (id) =>
       id === "express"
@@ -595,6 +595,88 @@ test("period rankings use real streak facts and calculate the next position", as
   assert.equal(result.pointsToNext, 50);
 });
 
+test("monthly seasons and recurring viewer challenges use score event facts", async () => {
+  let sqlSeen = "";
+  const server = loadServer(async (sql) => {
+      sqlSeen = sql;
+      if (sql.startsWith("SELECT COUNT(*) FILTER"))
+        return {
+          rows: [
+            { dailyCorrect: 4, weeklyCorrect: 7, weeklyWins: 3 },
+          ],
+        };
+      return {
+        rows: [
+          {
+            username: "Viewer",
+            points: 420,
+            wins: 3,
+            bestStreak: 5,
+            correct: 8,
+            wrong: 0,
+            rank: 1,
+            totalPlayers: 12,
+            previousPoints: null,
+          },
+        ],
+      };
+    }),
+    season = server.currentSeason(Date.UTC(2026, 6, 14));
+  assert.deepEqual(clone(season), {
+    key: "2026-07",
+    name: "July 2026",
+    startAt: Date.UTC(2026, 6, 1),
+    endAt: Date.UTC(2026, 7, 1),
+  });
+  assert.equal(server.normalizePeriod("monthly"), "season");
+  await server.rankingForViewer(
+    "tenant-season",
+    "kick:viewer",
+    "Viewer",
+    "season",
+  );
+  assert.match(sqlSeen, /date_trunc\('month',NOW\(\)\)/);
+  const challenges = clone(
+    await server.viewerChallenges(
+      "tenant-season",
+      "kick:viewer",
+      "Viewer",
+    ),
+  );
+  assert.equal(challenges[0].progress, 4);
+  assert.equal(challenges[0].completed, true);
+  assert.equal(challenges[1].progress, 7);
+  assert.equal(challenges[1].completed, false);
+  assert.equal(challenges[2].completed, true);
+});
+
+test("the challenge command opens a real progress card without becoming a guess", async () => {
+  const tenant = {
+      id: "tenant-challenge-command",
+      channel_name: "channel",
+      settings: { game },
+      jackpot: 250,
+    },
+    server = loadServer(async (sql) => {
+      if (sql.startsWith("SELECT COUNT(*) FILTER"))
+        return {
+          rows: [
+            { dailyCorrect: 1, weeklyCorrect: 5, weeklyWins: 0 },
+          ],
+        };
+      throw new Error(`Unexpected query: ${sql}`);
+    });
+
+  await server.message(tenant, "Viewer", "!challenge", "viewer-3");
+
+  const card = server.rankCards.get(tenant.id);
+  assert.equal(card.mode, "challenges");
+  assert.equal(card.username, "Viewer");
+  assert.equal(card.challenges.length, 3);
+  assert.equal(card.challenges[0].progress, 1);
+  assert.equal(card.season.name, server.currentSeason().name);
+});
+
 test("badge inserts are tenant scoped and idempotent", async () => {
   const calls = [];
   const server = loadServer(async (sql, params) => {
@@ -643,12 +725,287 @@ test("achievement schema records event facts and tenant-scoped badges", () => {
     );
 });
 
+test("puzzle management keeps a stable private queue and sanitized aliases", () => {
+  const server = loadServer(async (sql) => {
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    settings = {
+      game,
+      puzzles: {
+        disabledIds: ["finding-nemo", "not-a-puzzle"],
+        queuedId: "lion-king",
+        aliases: {
+          "lion-king": [
+            "Disney Lion Movie",
+            "<b>Hakuna King</b>",
+            "lion king",
+          ],
+          fake: ["ignored"],
+        },
+      },
+    },
+    normalized = server.puzzleSettings(settings),
+    selection = server.choosePuzzle(settings),
+    dashboard = server.puzzleDashboardState(settings);
+
+  assert.deepEqual(clone(normalized.disabledIds), ["finding-nemo"]);
+  assert.equal(normalized.queuedId, "lion-king");
+  assert.deepEqual(clone(normalized.aliases["lion-king"]), [
+    "Disney Lion Movie",
+    "Hakuna King",
+  ]);
+  assert.equal(selection.puzzle.id, "lion-king");
+  assert.equal(selection.queued, true);
+  assert.ok(selection.puzzle.answers.includes("Disney Lion Movie"));
+  assert.equal(dashboard.nextRound.id, "lion-king");
+  assert.equal(dashboard.nextRound.answer, "the lion king");
+  assert.equal(
+    dashboard.puzzles.find((puzzle) => puzzle.id === "finding-nemo").enabled,
+    false,
+  );
+});
+
+test("game settings reject filters with no enabled matching puzzles before updating", async () => {
+  const catalog = require(path.join(root, "puzzles.json")),
+    disabledFilmIds = catalog
+      .filter((puzzle) => puzzle.category === "Film")
+      .map((puzzle) => puzzle.id),
+    tenant = {
+      id: "tenant-empty-filter",
+      settings: {
+        game,
+        puzzles: {
+          disabledIds: disabledFilmIds,
+          aliases: {},
+          queuedId: null,
+        },
+      },
+    };
+  let updates = 0,
+    statusCode = 200,
+    body;
+  const server = loadServer(async (sql) => {
+      if (
+        sql.startsWith("SELECT * FROM tenants WHERE session_token_hash=") ||
+        sql.startsWith("SELECT * FROM tenants WHERE id=")
+      )
+        return { rows: [clone(tenant)] };
+      if (sql.startsWith("UPDATE tenants SET settings=")) {
+        updates++;
+        return { rows: [] };
+      }
+      if (sql.startsWith("SELECT id,access_token FROM guest_sessions"))
+        return { rows: [] };
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    handler = server.routes.get("POST /dashboard/game-settings"),
+    response = {
+      status(value) {
+        statusCode = value;
+        return this;
+      },
+      json(value) {
+        body = value;
+        return this;
+      },
+    };
+
+  await handler(
+    {
+      headers: { cookie: "emoji_session=session" },
+      body: {
+        ...game,
+        preset: "custom",
+        categories: ["Film"],
+        minDifficulty: "easy",
+        maxDifficulty: "expert",
+      },
+    },
+    response,
+  );
+
+  assert.equal(statusCode, 400);
+  assert.match(body.error, /no enabled puzzles/i);
+  assert.equal(updates, 0);
+});
+
+test("guest and tenant result packets expose a finish timestamp only after the round ends", async () => {
+  const server = loadServer(async (sql) => {
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    session = {
+      id: "guest-results",
+      expires_at: new Date(Date.now() + 60000),
+      settings: { game, automatic: false },
+      scores: {},
+    },
+    round = {
+      id: "guest-round",
+      status: "finished",
+      category: "Film",
+      difficulty: "easy",
+      emojis: "🦁 👑",
+      visibleEmojis: "🦁 👑",
+      answers: ["the lion king"],
+      startedAt: 1000,
+      endsAt: 61000,
+      finishedAt: 62000,
+      winner: null,
+      correctAnswers: [],
+      revealStage: 0,
+      revealCounts: [2],
+      revealParts: ["🦁", "👑"],
+      nextRevealAt: null,
+      gameConfig: game,
+      isJackpot: false,
+    };
+  server.guestRounds.set(session.id, round);
+
+  const result = await server.guestState(session);
+  assert.equal(result.round.finishedAt, 62000);
+  assert.equal(result.round.answer, "the lion king");
+  round.status = "open";
+  const open = await server.guestState(session);
+  assert.equal(open.round.finishedAt, null);
+  assert.equal(open.round.answer, null);
+});
+
+test("setup progress is normalized, persisted, and can be reopened without losing completion state", async () => {
+  const tenant = {
+    id: "tenant-setup",
+    settings: { game },
+  };
+  let updates = 0;
+  const server = loadServer(async (sql, params) => {
+      if (sql.startsWith("SELECT * FROM tenants WHERE session_token_hash="))
+        return { rows: [clone(tenant)] };
+      if (sql.startsWith("SELECT * FROM tenants WHERE id="))
+        return { rows: [clone(tenant)] };
+      if (sql.startsWith("UPDATE tenants SET settings=")) {
+        updates++;
+        tenant.settings = {
+          ...tenant.settings,
+          ...JSON.parse(params[1]),
+        };
+        return { rows: [{ settings: clone(tenant.settings) }] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    handler = server.routes.get("POST /dashboard/setup");
+  let statusCode = 200,
+    body;
+  const response = {
+    status(value) {
+      statusCode = value;
+      return this;
+    },
+    set() {
+      return this;
+    },
+    json(value) {
+      body = value;
+      return this;
+    },
+  };
+
+  assert.deepEqual(clone(server.normalizeSetupState({})), {
+    completed: false,
+    completedAt: null,
+    dismissedAt: null,
+    shouldOpen: true,
+  });
+  await handler(
+    {
+      headers: { cookie: "emoji_session=session" },
+      body: { action: "dismiss" },
+    },
+    response,
+  );
+  assert.equal(statusCode, 200);
+  assert.equal(updates, 1);
+  assert.equal(body.setup.shouldOpen, false);
+  assert.equal(Number.isFinite(body.setup.dismissedAt), true);
+  await handler(
+    {
+      headers: { cookie: "emoji_session=session" },
+      body: { action: "reopen" },
+    },
+    response,
+  );
+  assert.equal(body.reopen, true);
+  assert.equal(updates, 1);
+});
+
+test("dismissing a reopened completed setup preserves completion", async () => {
+  const completedAt = 1712345678000,
+    tenant = {
+      id: "tenant-completed-setup",
+      settings: { game, setup: { completedAt, dismissedAt: null } },
+    };
+  let updates = 0,
+    body;
+  const server = loadServer(async (sql, params) => {
+      if (
+        sql.startsWith("SELECT * FROM tenants WHERE session_token_hash=") ||
+        sql.startsWith("SELECT * FROM tenants WHERE id=")
+      )
+        return { rows: [clone(tenant)] };
+      if (sql.startsWith("UPDATE tenants SET settings=")) {
+        updates++;
+        tenant.settings = {
+          ...tenant.settings,
+          ...JSON.parse(params[1]),
+        };
+        return { rows: [{ settings: clone(tenant.settings) }] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    }),
+    handler = server.routes.get("POST /dashboard/setup"),
+    response = {
+      status() {
+        return this;
+      },
+      set() {
+        return this;
+      },
+      json(value) {
+        body = value;
+        return this;
+      },
+    },
+    request = (action) =>
+      handler(
+        {
+          headers: { cookie: "emoji_session=session" },
+          body: { action },
+        },
+        response,
+      );
+
+  await request("reopen");
+  assert.equal(body.reopen, true);
+  assert.equal(body.setup.completed, true);
+  assert.equal(body.setup.completedAt, completedAt);
+  assert.equal(updates, 0);
+
+  await request("dismiss");
+  assert.equal(updates, 1);
+  assert.equal(body.setup.completed, true);
+  assert.equal(body.setup.completedAt, completedAt);
+  assert.equal(body.setup.dismissedAt, null);
+  assert.equal(body.setup.shouldOpen, false);
+});
+
 test("live controls can force a jackpot and stale round callbacks cannot touch a replacement", async () => {
   const tenant = {
     id: "tenant-live",
     channel_name: "channel",
     display_name: "Channel",
-    settings: { theme: theme("#53fc18"), game },
+    settings: {
+      theme: theme("#53fc18"),
+      game,
+      puzzles: { disabledIds: [], aliases: {}, queuedId: "lion-king" },
+    },
     jackpot: 250,
     next_round_at: 0,
     community_progress: 0,
@@ -660,7 +1017,13 @@ test("live controls can force a jackpot and stale round callbacks cannot touch a
     if (sql.startsWith("UPDATE tenants SET settings=jsonb_set"))
       return {
         rows: [
-          { settings: { ...tenant.settings, rotation: JSON.parse(params[1]) } },
+          {
+            settings: {
+              ...tenant.settings,
+              rotation: JSON.parse(params[1]),
+              ...(params[2] ? { puzzles: JSON.parse(params[2]) } : {}),
+            },
+          },
         ],
       };
     if (sql.startsWith("UPDATE tenants SET next_round_at="))
@@ -680,6 +1043,8 @@ test("live controls can force a jackpot and stale round callbacks cannot touch a
   assert.equal(await server.startRound(tenant, { forceJackpot: true }), true);
   const first = server.rounds.get(tenant.id);
   assert.equal(first.isJackpot, true);
+  assert.equal(first.puzzleId, "lion-king");
+  assert.notEqual(tenant.settings.puzzles.queuedId, "lion-king");
   assert.notEqual(first.id, first.puzzleId);
   assert.equal(await server.skipRound(tenant), true);
   assert.equal(await server.startRound(tenant), true);
@@ -688,6 +1053,39 @@ test("live controls can force a jackpot and stale round callbacks cannot touch a
   assert.equal(await server.finishRound(tenant, first), false);
   assert.equal(server.rounds.get(tenant.id), replacement);
   assert.equal(replacement.status, "open");
+});
+
+test("tenant and guest starts preserve a finished round while results are showing", async () => {
+  const tenant = {
+      id: "tenant-results-guard",
+      settings: { game },
+    },
+    session = {
+      id: "guest-results-guard",
+      expires_at: new Date(Date.now() + 60000),
+      settings: { game },
+      scores: {},
+    },
+    tenantResults = { id: "tenant-finished", status: "finished" },
+    guestResults = { id: "guest-finished", status: "finished" };
+  let writes = 0;
+  const server = loadServer(async (sql) => {
+    if (sql.startsWith("SELECT * FROM guest_sessions WHERE id="))
+      return { rows: [clone(session)] };
+    if (sql.startsWith("UPDATE") || sql.startsWith("INSERT")) {
+      writes++;
+      return { rows: [] };
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  });
+  server.rounds.set(tenant.id, tenantResults);
+  server.guestRounds.set(session.id, guestResults);
+
+  assert.equal(await server.startRound(tenant), false);
+  assert.equal(await server.startGuestRound(session), false);
+  assert.equal(server.rounds.get(tenant.id), tenantResults);
+  assert.equal(server.guestRounds.get(session.id), guestResults);
+  assert.equal(writes, 0);
 });
 
 test("scoreboard display state is independent from round lifecycle", async () => {
@@ -739,6 +1137,20 @@ test("dashboard readiness reports real Kick and OBS connection health", async ()
   const server = loadServer(async (sql) => {
     if (sql.startsWith("SELECT * FROM tenants WHERE id="))
       return { rows: [clone(tenant)] };
+    if (sql.includes("FROM score_events"))
+      return {
+        rows: [
+          {
+            username: "Leader",
+            points: 500,
+            wins: 3,
+            streak: 0,
+            bestStreak: 4,
+            correct: 6,
+            wrong: 0,
+          },
+        ],
+      };
     throw new Error(`Unexpected query: ${sql}`);
   });
   server.sourceConnections.set(tenant.id, {
@@ -752,11 +1164,104 @@ test("dashboard readiness reports real Kick and OBS connection health", async ()
   assert.equal(live.sources.overlay.connections, 1);
   assert.equal(live.sources.scoreboard.connections, 2);
   assert.equal(live.kick.subscriptionHealthy, true);
+  assert.equal(live.setup.shouldOpen, true);
+  assert.equal(live.leaderboard.period, "season");
+  assert.match(live.season.name, /\d{4}$/);
+  assert.deepEqual(clone(live.leaderboard.entries), [
+    { rank: 1, username: "Leader", points: 500, wins: 3 },
+  ]);
   assert.ok(live.readiness.checks.every((check) => check.state === "ready"));
 });
 
-test("dashboard live control reveals the active answer without changing viewer packets", () => {
+test("dashboard actions and live route stay locked during finished results", async () => {
+  const tenant = {
+      id: "tenant-finished-actions",
+      channel_name: "channel",
+      display_name: "Channel",
+      settings: { game },
+      jackpot: 250,
+      next_round_at: Date.now() + 60000,
+      community_progress: 0,
+      community_completions: 0,
+      double_points_until: 0,
+    },
+    finished = {
+      id: "round-finished-actions",
+      status: "finished",
+      category: "Film",
+      difficulty: "easy",
+      emojis: "🦁 👑",
+      visibleEmojis: "🦁 👑",
+      answers: ["The Lion King"],
+      correctAnswers: [],
+      attempts: new Map(),
+      revealStage: 0,
+      revealCounts: [2],
+      revealParts: ["🦁", "👑"],
+      startedAt: 1000,
+      endsAt: 2000,
+      finishedAt: 2000,
+      winner: null,
+      isJackpot: false,
+    };
   const server = loadServer(async (sql) => {
+    if (
+      sql.startsWith("SELECT * FROM tenants WHERE session_token_hash=") ||
+      sql.startsWith("SELECT * FROM tenants WHERE id=")
+    )
+      return { rows: [clone(tenant)] };
+    if (sql.includes("FROM score_events") || sql.includes("FROM scores"))
+      return { rows: [] };
+    throw new Error(`Unexpected query: ${sql}`);
+  });
+  server.rounds.set(tenant.id, finished);
+
+  const live = await server.dashboardLiveState(tenant);
+  assert.equal(live.round.status, "finished");
+  assert.equal(live.actions.canStart, false);
+  assert.equal(live.actions.canShowScoreboard, false);
+
+  let statusCode = 200,
+    body;
+  await server.routes.get("POST /dashboard/live-action")(
+    {
+      headers: { cookie: "emoji_session=session" },
+      body: { action: "show-scoreboard", period: "season" },
+    },
+    {
+      set() {
+        return this;
+      },
+      status(value) {
+        statusCode = value;
+        return this;
+      },
+      json(value) {
+        body = value;
+        return this;
+      },
+    },
+  );
+
+  assert.equal(statusCode, 409);
+  assert.match(body.error, /wait for the round results/i);
+  assert.equal(server.scoreboardStates.has(tenant.id), false);
+});
+
+test("dashboard live control reveals the active answer without changing viewer packets", async () => {
+  const tenant = {
+      id: "tenant-answer-privacy",
+      channel_name: "channel",
+      display_name: "Channel",
+      settings: { game },
+      jackpot: 250,
+      community_progress: 0,
+      community_completions: 0,
+      double_points_until: 0,
+    },
+    server = loadServer(async (sql) => {
+      if (sql.includes("FROM score_events") || sql.includes("FROM scores"))
+        return { rows: [] };
       throw new Error(`Unexpected query: ${sql}`);
     }),
     roundData = {
@@ -767,7 +1272,31 @@ test("dashboard live control reveals the active answer without changing viewer p
       emojis: "🦁 👑",
       visibleEmojis: "🦁",
       answers: ["The Lion King", "Lion King"],
-      correctAnswers: [],
+      correctAnswers: [
+        {
+          username: "FirstViewer",
+          placement: 1,
+          points: 240,
+          responseMs: 4300,
+          multiplier: 2,
+          secret: "must not leak",
+        },
+        {
+          username: "SecondViewer",
+          placement: 2,
+          points: 160,
+          responseMs: 6900,
+        },
+      ],
+      attempts: new Map([
+        ["kick:one", { wrong: 2, locked: 0 }],
+        ["kick:two", { wrong: 1, locked: 0 }],
+      ]),
+      revealStage: 0,
+      revealCounts: [1, 2],
+      revealParts: ["🦁", "👑"],
+      nextRevealAt: Date.now() + 20000,
+      gameConfig: game,
       startedAt: Date.now(),
       endsAt: Date.now() + 60000,
       isJackpot: false,
@@ -783,11 +1312,41 @@ test("dashboard live control reveals the active answer without changing viewer p
       source.match(
         /answer: game\.status === "finished" \? game\.answers\[0\] : null/g,
       ) || [];
+  server.rounds.set(tenant.id, roundData);
+  const viewerState = await server.state(tenant);
+  roundData.status = "finished";
+  roundData.finishedAt = 123456;
+  const viewerResultState = await server.state(tenant);
 
   assert.equal(round.answer, "The Lion King");
   assert.equal(round.emojis, "🦁");
+  assert.equal(round.correctCount, 2);
+  assert.equal(round.wrongGuessCount, 3);
+  assert.equal(round.clueStage, 1);
+  assert.equal(round.clueCount, 1);
+  assert.equal(round.totalClues, 2);
+  assert.deepEqual(clone(round.recentCorrectAnswers), [
+    {
+      username: "SecondViewer",
+      placement: 2,
+      points: 160,
+      responseMs: 6900,
+    },
+    {
+      username: "FirstViewer",
+      placement: 1,
+      points: 240,
+      responseMs: 4300,
+    },
+  ]);
+  assert.equal("secret" in round.recentCorrectAnswers[1], false);
   assert.equal(finishedRound.answer, "The Lion King");
   assert.equal(finishedRound.emojis, "🦁 👑");
+  assert.equal(viewerState.round.answer, null);
+  assert.equal(viewerState.round.finishedAt, null);
+  assert.equal(viewerResultState.round.answer, "The Lion King");
+  assert.equal(viewerResultState.round.finishedAt, 123456);
+  assert.equal("nextRound" in viewerState, false);
   assert.ok(viewerGuards.length >= 2);
 });
 
@@ -904,6 +1463,10 @@ test("dashboard has one route and separate maintainable view modules", () => {
     "dashboard-view.js",
     "public/dashboard-live.js",
     "public/dashboard-sources.js",
+    "public/dashboard-puzzles.js",
+    "public/dashboard-mode.js",
+    "public/dashboard-setup.js",
+    "public/dashboard-setup.css",
     "public/dashboard-dirty.js",
   ])
     assert.equal(fs.existsSync(path.join(root, file)), true);
@@ -939,6 +1502,13 @@ test("dashboard settings protect and unify unsaved changes", () => {
   assert.match(live, /emoji:live-state/);
   assert.match(live, /live-round-answer/);
   assert.match(live, /Dashboard only/);
+  const setup = fs.readFileSync(
+    path.join(root, "public", "dashboard-setup.js"),
+    "utf8",
+  );
+  assert.match(setup, /Guest Test Lab/);
+  assert.match(setup, /Starting a manual round from Broadcast/);
+  assert.match(setup, /action\("dismiss"\)/);
 });
 
 test("automatic scheduler isolates tenant failures and prevents overlapping scans", async () => {
@@ -1128,6 +1698,7 @@ test("a failed round finish reopens and schedules a bounded retry", async () => 
     /database unavailable/,
   );
   assert.equal(round.status, "open");
+  assert.equal(round.finishedAt, null);
   assert.equal(round.finishRetries, 1);
   assert.equal(typeof retry, "function");
   assert.equal(retryDelay, 1000);
@@ -1197,6 +1768,7 @@ test("round finalization locks and uses the latest persisted answer state", asyn
 
   assert.equal(await server.finishRound(tenant, local), true);
   assert.equal(locked, true);
+  assert.equal(Number.isFinite(local.finishedAt), true);
   assert.equal(identityDelete, true);
   assert.equal(historyParams[7], "LatestWinner");
   assert.equal(historyParams[9], 1);
@@ -1402,19 +1974,49 @@ function classList() {
 function element() {
   return {
     classList: classList(),
+    dataset: {},
     style: {
       setProperty(name, value) {
         this[name] = value;
       },
+      removeProperty(name) {
+        delete this[name];
+      },
     },
     textContent: "",
     innerHTML: "",
+    replaceChildren() {
+      this.innerHTML = "";
+      this.textContent = "";
+    },
   };
 }
 
 function loadClient(file, selectors, pathname, nowRef) {
   const elements = Object.fromEntries(
       selectors.map((selector) => [selector, element()]),
+    ),
+    resultSelectors = [
+      "#result-sequence",
+      "#result-answer",
+      "#result-winner-name",
+      "#result-winner-speed",
+      "#result-winner-speed-label",
+      "#result-winner-points",
+      "#result-winner-points-label",
+      "#result-podium",
+      "#result-next-countdown",
+      "#result-next-note",
+      "#result-progress-1",
+      "#result-progress-2",
+      "#result-progress-3",
+      "#result-progress-4",
+    ];
+  resultSelectors.forEach(
+    (selector) => (elements[selector] ||= element()),
+  );
+  const resultProgress = [1, 2, 3, 4].map(
+      (index) => elements[`#result-progress-${index}`],
     ),
     intervals = [],
     sources = [];
@@ -1432,7 +2034,11 @@ function loadClient(file, selectors, pathname, nowRef) {
         reloads++;
       },
     },
-    document: { querySelector: (selector) => elements[selector] },
+    document: {
+      querySelector: (selector) => elements[selector],
+      querySelectorAll: (selector) =>
+        selector === ".result-progress i" ? resultProgress : [],
+    },
     window: { applyWidgetTheme() {} },
     EventSource,
     Date: { now: () => nowRef.value },
@@ -1446,7 +2052,13 @@ function loadClient(file, selectors, pathname, nowRef) {
     context,
     { filename: file },
   );
-  return { elements, intervals, source: sources[0], reloads: () => reloads };
+  return {
+    elements,
+    intervals,
+    resultProgress,
+    source: sources[0],
+    reloads: () => reloads,
+  };
 }
 
 test("community goal renders while configured and hides cleanly after a boost expires", () => {
@@ -1465,6 +2077,14 @@ test("community goal renders while configured and hides cleanly after a boost ex
       "#community-label",
       "#community-value",
       "#community-fill",
+      "#result-sequence",
+      "#result-answer",
+      "#result-winner-name",
+      "#result-winner-speed",
+      "#result-winner-points",
+      "#result-podium",
+      "#result-next-countdown",
+      "#result-next-note",
     ];
   const client = loadClient(
     "cloud-overlay.js",
@@ -1543,6 +2163,112 @@ test("community goal renders while configured and hides cleanly after a boost ex
   assert.equal(client.reloads(), 1);
 });
 
+test("finished rounds advance through a reconnect-safe four-stage result sequence", () => {
+  const now = { value: 1000 },
+    selectors = [
+      "#stage",
+      "#community",
+      "#category",
+      "#emojis",
+      "#label",
+      "#prompt",
+      "#winner",
+      "#highscores",
+      "#board",
+      "#timer",
+      "#badge-alert",
+      "#result-sequence",
+      "#result-answer",
+      "#result-winner-name",
+      "#result-winner-speed",
+      "#result-winner-points",
+      "#result-podium",
+      "#result-next-countdown",
+      "#result-next-note",
+    ],
+    client = loadClient(
+      "cloud-overlay.js",
+      selectors,
+      "/o/token/overlay.html",
+      now,
+    ),
+    result = {
+      version: "result-build",
+      theme: theme("#53fc18"),
+      round: {
+        status: "finished",
+        category: "Film",
+        difficulty: "easy",
+        emojis: "🦁 👑",
+        answer: "The Lion King",
+        endsAt: 1000,
+        finishedAt: 1000,
+        correctAnswers: [
+          {
+            placement: 1,
+            username: "Winner",
+            points: 240,
+            responseMs: 3200,
+          },
+          {
+            placement: 2,
+            username: "RunnerUp",
+            points: 150,
+            responseMs: 5100,
+          },
+        ],
+        winner: {
+          username: "Winner",
+          points: 240,
+          responseMs: 3200,
+        },
+      },
+      scores: [],
+      config: { resultsMs: 10000, autoChance: 1 },
+      auto: { nextRollAt: 21000 },
+    };
+
+  client.source.onmessage({ data: JSON.stringify(result) });
+  assert.equal(client.elements["#stage"].dataset.resultStage, "answer");
+  assert.equal(
+    client.elements["#result-answer"].textContent,
+    "The Lion King",
+  );
+  assert.equal(client.elements["#timer"].textContent, "10.0");
+  now.value = 3300;
+  client.intervals[0]();
+  assert.equal(client.elements["#stage"].dataset.resultStage, "winner");
+  assert.equal(client.elements["#timer"].textContent, "7.7");
+  assert.equal(
+    client.elements["#result-winner-name"].textContent,
+    "🏆 Winner",
+  );
+  now.value = 6000;
+  client.intervals[0]();
+  assert.equal(client.elements["#stage"].dataset.resultStage, "podium");
+  assert.match(client.elements["#result-podium"].innerHTML, /RunnerUp/);
+  now.value = 8800;
+  client.intervals[0]();
+  assert.equal(client.elements["#stage"].dataset.resultStage, "next");
+  assert.equal(client.elements["#timer"].textContent, "2.2");
+  assert.equal(
+    client.elements["#result-next-note"].textContent,
+    "Automatic rounds are on",
+  );
+  assert.equal(client.resultProgress[3].classList.contains("active"), true);
+
+  const css = fs.readFileSync(path.join(root, "public", "overlay.css"), "utf8"),
+    html = fs.readFileSync(path.join(root, "public", "overlay.html"), "utf8");
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  for (const id of [
+    "result-answer",
+    "result-winner-name",
+    "result-podium",
+    "result-next-countdown",
+  ])
+    assert.match(html, new RegExp(`id="${id}"`));
+});
+
 test("scoreboard hides locally at zero and can reopen on the next server event", () => {
   const now = { value: 1000 },
     selectors = ["#scoreboard", "#title", "#caller", "#rows", "#timer"];
@@ -1592,4 +2318,175 @@ test("scoreboard hides locally at zero and can reopen on the next server event",
     data: JSON.stringify({ ...state, version: "build-2" }),
   });
   assert.equal(client.reloads(), 1);
+});
+
+test("scoreboard SSE renders season challenge progress and completion", () => {
+  const now = { value: Date.UTC(2026, 6, 14, 12) },
+    selectors = [
+      "#scoreboard",
+      "#rank-card",
+      "#rank-challenges",
+      "#rank-label",
+      "#rank-name",
+      "#rank-position",
+      "#rank-stats",
+      "#rank-next",
+      "#title",
+      "#caller",
+      "#rows",
+      "#timer",
+    ],
+    client = loadClient(
+      "cloud-scoreboard.js",
+      selectors,
+      "/o/token/scoreboard.html",
+      now,
+    ),
+    packet = {
+      version: "season-challenges-build",
+      theme: theme("#53fc18"),
+      season: { key: "2026-07", name: "July 2026" },
+      round: null,
+      scoreboard: { visible: false, period: "season", hideAt: 0 },
+      scoreboardScores: [],
+      rankCard: {
+        visible: true,
+        hideAt: now.value + 14000,
+        mode: "challenges",
+        username: "DecoderFan",
+        season: { key: "2026-07", name: "July 2026" },
+        challenges: [
+          {
+            id: "daily-decoder",
+            name: "Daily Decoder",
+            description: "Answer 3 puzzles correctly today",
+            period: "daily",
+            progress: 2,
+            target: 3,
+            completed: false,
+          },
+          {
+            id: "weekly-winner",
+            name: "Weekly Winner",
+            description: "Finish first in 3 rounds this week",
+            period: "weekly",
+            progress: 3,
+            target: 3,
+            completed: true,
+          },
+        ],
+      },
+    };
+
+  client.source.onmessage({ data: JSON.stringify(packet) });
+
+  assert.equal(client.source.url, "/o/token/events?source=scoreboard");
+  assert.equal(
+    client.elements["#rank-card"].classList.contains("hidden"),
+    false,
+  );
+  assert.equal(
+    client.elements["#rank-card"].classList.contains("challenges-mode"),
+    true,
+  );
+  assert.equal(client.elements["#rank-position"].textContent, "July 2026");
+  assert.match(client.elements["#rank-stats"].innerHTML, /1\/2/);
+  assert.match(client.elements["#rank-challenges"].innerHTML, /Daily Decoder/);
+  assert.match(client.elements["#rank-challenges"].innerHTML, />2\/3</);
+  assert.match(client.elements["#rank-challenges"].innerHTML, /Weekly Winner/);
+  assert.match(client.elements["#rank-challenges"].innerHTML, />DONE</);
+  assert.equal(client.elements["#rank-challenges"].hidden, false);
+  assert.equal(
+    client.elements["#scoreboard"].classList.contains("hidden"),
+    true,
+  );
+});
+
+test("insight recommendations turn performance facts into concrete actions", () => {
+  const server = loadServer(async () => ({ rows: [] }));
+  assert.equal(typeof server.insightRecommendations, "function");
+
+  const recommendations = server.insightRecommendations({
+    summary: {
+      rounds: 30,
+      solved: 11,
+      solveRate: 37,
+      averageResponseMs: 19200,
+      averageParticipants: 3,
+    },
+    categories: [
+      { category: "Film", rounds: 12, solved: 2, solveRate: 17 },
+      { category: "Music", rounds: 8, solved: 6, solveRate: 75 },
+    ],
+    difficulties: [
+      { difficulty: "hard", rounds: 10, solved: 1, solveRate: 10 },
+      { difficulty: "easy", rounds: 9, solved: 7, solveRate: 78 },
+    ],
+    trends: {
+      recent: { rounds: 8, solved: 2, solveRate: 25 },
+      previous: { rounds: 8, solved: 5, solveRate: 63 },
+      solveRateChange: -22,
+    },
+    audience: {
+      uniqueSolvers: 22,
+      repeatSolvers: 4,
+      repeatRate: 18,
+    },
+  });
+
+  assert.ok(Array.isArray(recommendations));
+  assert.ok(recommendations.length >= 3);
+  for (const recommendation of recommendations) {
+    assert.ok(String(recommendation.title || "").trim());
+    assert.ok(String(recommendation.detail || "").trim());
+    assert.ok(String(recommendation.action || "").trim());
+  }
+  const copy = JSON.stringify(recommendations);
+  assert.match(copy, /Film/i);
+  assert.match(copy, /hard/i);
+  assert.match(copy, /return|retention|regular/i);
+  assert.match(copy, /drop|down|fall|fell|declin|trend/i);
+});
+
+test("early insight samples ask for a baseline instead of declaring a healthy mix", () => {
+  const server = loadServer(async () => ({ rows: [] }));
+
+  for (const rounds of [1, 2, 3]) {
+    const recommendations = server.insightRecommendations({
+        summary: { rounds, solved: rounds, solveRate: 100 },
+        categories: [
+          { category: "Film", rounds, solved: rounds, solveRate: 100 },
+        ],
+        difficulties: [
+          { difficulty: "easy", rounds, solved: rounds, solveRate: 100 },
+        ],
+        trends: {},
+        audience: { uniqueSolvers: rounds, repeatSolvers: rounds },
+      }),
+      copy = JSON.stringify(recommendations);
+    assert.equal(recommendations[0]?.id, "build-baseline");
+    assert.match(copy, /collect|baseline|few more/i);
+    assert.doesNotMatch(copy, /balanced|healthy/i);
+  }
+});
+
+test("dashboard insights response includes trend, difficulty, audience, and recommendation contracts", () => {
+  const source = fs.readFileSync(path.join(root, "server.js"), "utf8"),
+    start = source.indexOf('app.get("/dashboard/insights"'),
+    end = source.indexOf("\napp.get(", start + 1);
+  assert.notEqual(start, -1, "dashboard insights route should exist");
+  const route = source.slice(start, end === -1 ? source.length : end),
+    response = route.slice(route.indexOf("res.json"));
+  assert.ok(response.startsWith("res.json"), "insights route should send JSON");
+  for (const key of [
+    "trends",
+    "difficulties",
+    "audience",
+    "recommendations",
+  ])
+    assert.match(
+      response,
+      new RegExp(`\\b${key}\\b`),
+      `insights response should include ${key}`,
+    );
 });

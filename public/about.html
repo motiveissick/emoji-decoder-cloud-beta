@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Emoji Decoder turns Kick chat into a live competitive emoji game with automatic rounds, jackpots, achievements and persistent leaderboards."
+      content="Emoji Decoder turns Kick chat into a live emoji game with automatic rounds, OBS overlays, monthly seasons, recurring challenges and persistent scores."
     />
     <meta name="theme-color" content="#071009" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -26,7 +26,7 @@
     />
     <meta
       property="og:description"
-      content="Cloud-hosted emoji puzzles, persistent scores and OBS-ready overlays for Kick streamers."
+      content="Cloud-hosted emoji puzzles, monthly seasons and OBS-ready overlays for Kick streamers."
     />
     <meta property="og:type" content="website" />
     <meta
@@ -51,7 +51,7 @@
     />
     <meta
       name="twitter:description"
-      content="Cloud-hosted emoji puzzles, persistent scores and OBS-ready overlays for Kick streamers."
+      content="Cloud-hosted emoji puzzles, monthly seasons and OBS-ready overlays for Kick streamers."
     />
     <meta
       name="twitter:image"
@@ -66,13 +66,15 @@
             "@type": "SoftwareApplication",
             "name": "Emoji Decoder",
             "url": "https://emoji-decoder-beta.onrender.com/about",
-            "description": "A cloud-hosted live emoji guessing game with persistent leaderboards and OBS overlays for Kick streamers.",
+            "description": "A cloud-hosted live emoji guessing game with monthly seasons, recurring challenges and OBS overlays for Kick streamers.",
             "applicationCategory": "GameApplication",
             "operatingSystem": "Web browser and OBS Studio",
             "featureList": [
               "Automatic emoji rounds",
               "Persistent viewer scores and achievements",
               "OBS Browser Source overlays",
+              "Monthly leaderboard seasons",
+              "Daily and weekly viewer challenges",
               "Jackpots and community goals"
             ]
           },
@@ -139,8 +141,7 @@
       </button>
       <nav id="main-nav" aria-label="Primary navigation">
         <a href="#features">Features</a><a href="#setup">How it works</a
-        ><a href="#faq">FAQ</a
-        ><a href="/login">Sign in</a
+        ><a href="#faq">FAQ</a><a href="/login">Sign in</a
         ><a class="button small" href="/join">Join beta</a>
       </nav>
     </header>
@@ -151,8 +152,8 @@
           <span class="eyebrow">BUILT FOR KICK STREAMERS</span>
           <h1>Turn Kick chat into a live <em>game.</em></h1>
           <p>
-            Run automatic emoji puzzles, reward fast answers and give viewers
-            a reason to stay, play and return.
+            Run automatic emoji puzzles, reward fast answers and give viewers a
+            reason to stay, play and return.
           </p>
           <div class="actions">
             <a class="button" href="/join">Join the private beta <b>→</b></a
@@ -221,6 +222,130 @@
         </article>
       </section>
 
+      <section class="section broadcast-proof" id="broadcast-mode">
+        <div class="section-heading">
+          <span class="eyebrow">INSIDE BROADCAST MODE</span>
+          <h2>Everything you need while you are live.</h2>
+          <p>
+            Run the current round, see the answer privately and follow the next
+            puzzle without leaving one focused screen.
+          </p>
+        </div>
+        <div class="broadcast-window">
+          <div class="broadcast-titlebar">
+            <div>
+              <span class="broadcast-mark" aria-hidden="true">⚡</span>
+              <span><strong>Broadcast</strong><small>Live control</small></span>
+            </div>
+            <span class="broadcast-live"><i aria-hidden="true"></i> Live</span>
+          </div>
+          <div
+            class="broadcast-readiness"
+            role="list"
+            aria-label="Broadcast readiness"
+          >
+            <span role="listitem"
+              ><i aria-hidden="true">✓</i> Kick connected</span
+            >
+            <span role="listitem"
+              ><i aria-hidden="true">✓</i> OBS sources ready</span
+            >
+            <span role="listitem"
+              ><i aria-hidden="true">✓</i> Automatic rounds on</span
+            >
+          </div>
+          <div class="broadcast-layout">
+            <article
+              class="round-preview"
+              aria-labelledby="preview-round-title"
+            >
+              <div class="round-preview-head">
+                <div>
+                  <span class="preview-kicker">ACTIVE ROUND · FILM</span>
+                  <h3 id="preview-round-title">Guess the emoji title</h3>
+                </div>
+                <div
+                  class="preview-timer"
+                  role="timer"
+                  aria-label="18 seconds remaining"
+                >
+                  <strong>18</strong><small>seconds</small>
+                </div>
+              </div>
+              <div
+                class="preview-emoji"
+                role="img"
+                aria-label="Lion and crown emoji"
+              >
+                🦁 <span>👑</span>
+              </div>
+              <div class="private-answer">
+                <span><i aria-hidden="true">◉</i> Answer</span>
+                <strong>The Lion King</strong>
+                <small>Dashboard only</small>
+              </div>
+              <div class="round-signal">
+                <span>1 of 2 clues shown</span
+                ><span>6 guesses · 2 correct</span>
+              </div>
+              <div class="preview-progress" aria-hidden="true"><i></i></div>
+              <div class="broadcast-actions">
+                <span class="preview-action primary">End with results</span>
+                <span class="preview-action">Skip round</span>
+                <span class="preview-action">Pause automatic rounds</span>
+              </div>
+            </article>
+            <aside class="broadcast-rail" aria-label="Round activity preview">
+              <section class="next-preview">
+                <div class="rail-heading">
+                  <span>Up next</span><small>FILM · MEDIUM</small>
+                </div>
+                <div
+                  class="next-emoji"
+                  role="img"
+                  aria-label="Iceberg and ship emoji"
+                >
+                  🧊 🚢
+                </div>
+                <div class="next-answer">
+                  <span>Titanic</span><small>Private preview</small>
+                </div>
+              </section>
+              <section class="season-preview">
+                <div class="rail-heading">
+                  <span>Current season</span><small>TOP 3</small>
+                </div>
+                <ol>
+                  <li>
+                    <b>1</b><span>PixelKnight</span><strong>2,840</strong>
+                  </li>
+                  <li>
+                    <b>2</b><span>ChatChampion</span><strong>2,510</strong>
+                  </li>
+                  <li><b>3</b><span>EmojiAce</span><strong>2,180</strong></li>
+                </ol>
+              </section>
+              <section class="correct-preview">
+                <div class="rail-heading">
+                  <span>Recent correct</span><small>THIS ROUND</small>
+                </div>
+                <div class="correct-list">
+                  <span
+                    ><i aria-hidden="true">✓</i> PixelKnight <b>+272</b></span
+                  >
+                  <span><i aria-hidden="true">✓</i> EmojiAce <b>+198</b></span>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </div>
+        <p class="broadcast-caption">
+          A representative product view. Active answers and next puzzles stay
+          inside the streamer dashboard; the overlay reveals the answer only
+          after the round ends.
+        </p>
+      </section>
+
       <section class="section" id="features">
         <div class="section-heading">
           <h2>A game loop built for community.</h2>
@@ -248,18 +373,18 @@
           </article>
           <article>
             <span>🥇</span>
-            <h3>Fresh leaderboards</h3>
+            <h3>Monthly seasons</h3>
             <p>
-              Daily and weekly competitions welcome newcomers while all-time
-              scores preserve history.
+              A fresh season gives newcomers room to compete while all-time
+              scores preserve community history.
             </p>
           </article>
           <article class="purple">
             <span>🏅</span>
-            <h3>Achievements</h3>
+            <h3>Challenges &amp; achievements</h3>
             <p>
-              Celebrate speed, streaks, first places, perfect guesses and loyal
-              participation.
+              Daily and weekly goals celebrate speed, streaks, first places and
+              loyal participation.
             </p>
           </article>
         </div>
@@ -307,8 +432,11 @@
           </p>
         </div>
         <div class="commands">
-          <code>!rank <span>See leaderboard position</span></code
-          ><code>!scoreboard <span>Show the top ten on stream</span></code
+          <code>!rank season <span>See this season's position</span></code
+          ><code
+            >!scoreboard season
+            <span>Show the season leaders on stream</span></code
+          ><code>!challenge <span>Check daily and weekly progress</span></code
           ><code>!jackpot <span>Reveal the community prize</span></code>
         </div>
       </section>

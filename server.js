@@ -266,6 +266,23 @@ function normalizeTheme(input = {}) {
 function tenantTheme(tenant) {
   return normalizeTheme(tenant.settings?.theme || defaultTheme);
 }
+function normalizeSetupState(input = {}) {
+  const timestamp = (value) => {
+      const number = Number(value);
+      return Number.isFinite(number) && number > 0 ? Math.floor(number) : null;
+    },
+    completedAt = timestamp(input.completedAt),
+    dismissedAt = completedAt ? null : timestamp(input.dismissedAt);
+  return {
+    completed: Boolean(completedAt),
+    completedAt,
+    dismissedAt,
+    shouldOpen: !completedAt && !dismissedAt,
+  };
+}
+function setupState(settings = {}) {
+  return normalizeSetupState(settings.setup || {});
+}
 const BADGES = {
   quick_draw: {
     icon: "⚡",
@@ -319,13 +336,171 @@ async function backfillBadges() {
     `INSERT INTO user_badges(tenant_id,user_key,badge_key,username) SELECT tenant_id,user_key,'regular',(ARRAY_AGG(username ORDER BY won_at DESC))[1] FROM score_events GROUP BY tenant_id,user_key HAVING COUNT(DISTINCT won_at::date)>=7 ON CONFLICT DO NOTHING`,
   );
 }
+function currentSeason(now = Date.now()) {
+  const date = new Date(now),
+    year = date.getUTCFullYear(),
+    month = date.getUTCMonth(),
+    startAt = Date.UTC(year, month, 1),
+    endAt = Date.UTC(year, month + 1, 1),
+    name = new Intl.DateTimeFormat("en-GB", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(startAt));
+  return {
+    key: `${year}-${String(month + 1).padStart(2, "0")}`,
+    name,
+    startAt,
+    endAt,
+  };
+}
 function normalizePeriod(value) {
   const period = String(value || "weekly")
     .toLowerCase()
     .replace(/[-_]/g, "");
   if (period === "daily" || period === "today") return "daily";
+  if (["season", "monthly", "month", "currentseason"].includes(period))
+    return "season";
   if (["alltime", "all", "lifetime"].includes(period)) return "alltime";
   return "weekly";
+}
+function insightRecommendations({
+  summary = {},
+  categories = [],
+  difficulties = [],
+  trends = {},
+  audience = {},
+} = {}) {
+  const recommendations = [],
+    number = (value) => Number(value || 0),
+    rate = (item) =>
+      number(item?.rounds)
+        ? Math.round((number(item.solved) / number(item.rounds)) * 100)
+        : 0,
+    add = (id, tone, title, detail, action, target) =>
+      recommendations.push({ id, tone, title, detail, action, target }),
+    rounds = number(summary.rounds),
+    overallRate = Number.isFinite(Number(summary.solveRate))
+      ? Number(summary.solveRate)
+      : rate(summary);
+  if (!rounds) {
+    add(
+      "first-round",
+      "neutral",
+      "Run a first measured round",
+      "Insights become useful after completed cloud rounds start building a baseline.",
+      "Open Broadcast Mode",
+      "#live-control",
+    );
+    return recommendations;
+  }
+  if (rounds < 4) {
+    add(
+      "build-baseline",
+      "neutral",
+      "Collect a few more rounds",
+      `${rounds} completed round${rounds === 1 ? " is" : "s are"} not enough to call a trend yet. Collect at least four completed rounds before changing the mix.`,
+      "Open Broadcast Mode",
+      "#live-control",
+    );
+    return recommendations;
+  }
+  if (rounds >= 4 && overallRate < 40)
+    add(
+      "easier-mix",
+      "attention",
+      "Make the next puzzle mix easier",
+      `Only ${overallRate}% of rounds were solved. Lower the maximum difficulty or enable progressive clues, then compare the next few rounds.`,
+      "Review game settings",
+      "#game",
+    );
+  else if (rounds >= 8 && overallRate > 82)
+    add(
+      "harder-mix",
+      "positive",
+      "Give regulars a little more challenge",
+      `${overallRate}% of rounds were solved. Raise the minimum difficulty one step and watch whether participation holds.`,
+      "Tune game settings",
+      "#game",
+    );
+
+  const hardestCategory = [...categories]
+    .filter((item) => number(item.rounds) >= 3)
+    .sort((a, b) => rate(a) - rate(b))[0];
+  if (hardestCategory && rate(hardestCategory) < 50)
+    add(
+      "category-mix",
+      "attention",
+      `Review the ${hardestCategory.category} category`,
+      `${hardestCategory.category} is the hardest category at ${rate(hardestCategory)}% solved across ${number(hardestCategory.rounds)} rounds. Disable unclear puzzles or add accepted answers.`,
+      "Open puzzle library",
+      "#puzzles",
+    );
+
+  const hardestDifficulty = [...difficulties]
+    .filter((item) => number(item.rounds) >= 3)
+    .sort((a, b) => rate(a) - rate(b))[0];
+  if (hardestDifficulty && rate(hardestDifficulty) < 45)
+    add(
+      "difficulty-mix",
+      "neutral",
+      `Check ${hardestDifficulty.difficulty} difficulty`,
+      `${hardestDifficulty.difficulty} puzzles are being solved ${rate(hardestDifficulty)}% of the time. Narrow the range if that is slowing the show.`,
+      "Adjust difficulty",
+      "#game",
+    );
+
+  const recent = trends.recent || {},
+    previous = trends.previous || {},
+    recentRate = Number.isFinite(Number(recent.solveRate))
+      ? Number(recent.solveRate)
+      : rate(recent),
+    previousRate = Number.isFinite(Number(previous.solveRate))
+      ? Number(previous.solveRate)
+      : rate(previous),
+    rateChange = Number.isFinite(Number(trends.solveRateChange))
+      ? Number(trends.solveRateChange)
+      : recentRate - previousRate;
+  if (
+    number(recent.rounds) >= 3 &&
+    number(previous.rounds) >= 3 &&
+    rateChange <= -15
+  )
+    add(
+      "falling-solve-rate",
+      "attention",
+      "Solve rate fell this week",
+      `The last 7 days are ${Math.abs(rateChange)} points below the previous week. Check recent categories and difficulty before the next broadcast.`,
+      "Review recent rounds",
+      "#insights",
+    );
+
+  const uniqueSolvers = number(audience.uniqueSolvers),
+    repeatRate = Number.isFinite(Number(audience.repeatRate))
+      ? Number(audience.repeatRate)
+      : uniqueSolvers
+        ? Math.round((number(audience.repeatSolvers) / uniqueSolvers) * 100)
+        : 0;
+  if (uniqueSolvers >= 5 && repeatRate < 35)
+    add(
+      "returning-solvers",
+      "neutral",
+      "Turn first-time solvers into regulars",
+      `Only ${repeatRate}% of recent solvers returned for a second correct answer. Promote season ranks and !challenge between rounds.`,
+      "View viewer commands",
+      "#commands",
+    );
+
+  if (!recommendations.length)
+    add(
+      "healthy-mix",
+      "positive",
+      "Keep the current mix",
+      "Solve rate, recent trend and returning participation are balanced. Keep collecting rounds before making a large change.",
+      "Open Broadcast Mode",
+      "#live-control",
+    );
+  return recommendations.slice(0, 5);
 }
 async function badgesFor(tenantId, userKey, username, db = pool) {
   const result = await db.query(
@@ -358,7 +533,7 @@ async function rankingForViewer(
   const source =
     period === "alltime"
       ? `SELECT user_key,username,points,wins,best_streak AS "bestStreak",correct,wrong FROM scores WHERE tenant_id=$1`
-      : `SELECT user_key,(ARRAY_AGG(username ORDER BY won_at DESC))[1] username,SUM(points)::int points,COUNT(*) FILTER(WHERE placement=1)::int wins,MAX(streak)::int AS "bestStreak",COUNT(*)::int correct,0::int wrong FROM score_events WHERE tenant_id=$1 AND won_at>=${period === "daily" ? "date_trunc('day',NOW())" : "date_trunc('week',NOW())"} GROUP BY user_key`;
+      : `SELECT user_key,(ARRAY_AGG(username ORDER BY won_at DESC))[1] username,SUM(points)::int points,COUNT(*) FILTER(WHERE placement=1)::int wins,MAX(streak)::int AS "bestStreak",COUNT(*)::int correct,0::int wrong FROM score_events WHERE tenant_id=$1 AND won_at>=${period === "daily" ? "date_trunc('day',NOW())" : period === "season" ? "date_trunc('month',NOW())" : "date_trunc('week',NOW())"} GROUP BY user_key`;
   const result = await pool.query(
       `WITH totals AS (${source}),ranked AS (SELECT *,ROW_NUMBER() OVER(ORDER BY points DESC,wins DESC,user_key)::int rank,COUNT(*) OVER()::int AS "totalPlayers",LAG(points) OVER(ORDER BY points DESC,wins DESC,user_key)::int AS "previousPoints" FROM totals) SELECT * FROM ranked WHERE user_key=$2 OR LOWER(username)=LOWER($3) ORDER BY (user_key=$2) DESC LIMIT 1`,
       [tenantId, userKey, username],
@@ -397,6 +572,46 @@ async function rankingForViewer(
         ? null
         : Math.max(1, Number(row.previousPoints) - Number(row.points) + 1),
   };
+}
+async function viewerChallenges(tenantId, userKey, username, db = pool) {
+  const result = await db.query(
+      `SELECT COUNT(*) FILTER(WHERE won_at>=date_trunc('day',NOW()))::int AS "dailyCorrect",COUNT(*) FILTER(WHERE won_at>=date_trunc('week',NOW()))::int AS "weeklyCorrect",COUNT(*) FILTER(WHERE won_at>=date_trunc('week',NOW()) AND placement=1)::int AS "weeklyWins" FROM score_events WHERE tenant_id=$1 AND (user_key=$2 OR LOWER(username)=LOWER($3))`,
+      [tenantId, userKey, username],
+    ),
+    progress = result.rows[0] || {},
+    definitions = [
+      {
+        id: "daily-decoder",
+        icon: "☀️",
+        name: "Daily Decoder",
+        description: "Answer 3 puzzles correctly today",
+        period: "daily",
+        progress: Number(progress.dailyCorrect || 0),
+        target: 3,
+      },
+      {
+        id: "weekly-solver",
+        icon: "🧩",
+        name: "Weekly Solver",
+        description: "Answer 10 puzzles correctly this week",
+        period: "weekly",
+        progress: Number(progress.weeklyCorrect || 0),
+        target: 10,
+      },
+      {
+        id: "weekly-winner",
+        icon: "🏆",
+        name: "Weekly Winner",
+        description: "Finish first in 3 rounds this week",
+        period: "weekly",
+        progress: Number(progress.weeklyWins || 0),
+        target: 3,
+      },
+    ];
+  return definitions.map((challenge) => ({
+    ...challenge,
+    completed: challenge.progress >= challenge.target,
+  }));
 }
 function showRankCard(tenant, card, duration = 10000) {
   const id = crypto.randomUUID(),
@@ -456,6 +671,8 @@ async function handleViewerCommand(tenant, user, userKey, parts) {
       "!achievements",
       "!jackpot",
       "!scoreboard",
+      "!challenge",
+      "!challenges",
     ]);
   if (!known.has(command)) return false;
   const cooldownKey =
@@ -471,6 +688,19 @@ async function handleViewerCommand(tenant, user, userKey, parts) {
       if (at < now - 60000) commandTimes.delete(key);
   if (command === "!commands") {
     await showRankCard(tenant, { mode: "commands", username: user }, 15000);
+    return true;
+  }
+  if (command === "!challenge" || command === "!challenges") {
+    await showRankCard(
+      tenant,
+      {
+        mode: "challenges",
+        username: user,
+        season: currentSeason(),
+        challenges: await viewerChallenges(tenant.id, userKey, user),
+      },
+      14000,
+    );
     return true;
   }
   if (command === "!scoreboard") {
@@ -666,6 +896,71 @@ function gameSettings(settings = {}) {
       : input,
   );
 }
+const puzzleIds = new Set(puzzles.map((puzzle) => puzzle.id));
+function normalizePuzzleSettings(input = {}) {
+  const disabledIds = [
+      ...new Set(
+        (Array.isArray(input.disabledIds) ? input.disabledIds : [])
+          .map(String)
+          .filter((id) => puzzleIds.has(id)),
+      ),
+    ].slice(0, Math.max(0, puzzles.length - 1)),
+    disabled = new Set(disabledIds),
+    aliases = {};
+  if (input.aliases && typeof input.aliases === "object")
+    for (const [id, values] of Object.entries(input.aliases)) {
+      if (!puzzleIds.has(id)) continue;
+      const puzzle = puzzles.find((item) => item.id === id),
+        existing = new Set((puzzle?.answers || []).map(norm)),
+        cleaned = [
+          ...new Set(
+            (Array.isArray(values) ? values : [])
+              .map((value) =>
+                String(value || "")
+                  .replace(/<[^>]*>/g, "")
+                  .replace(/[<>]/g, "")
+                  .replace(/\s+/g, " ")
+                  .trim()
+                  .slice(0, 60),
+              )
+              .filter((value) => value.length >= 2 && !existing.has(norm(value))),
+          ),
+        ].slice(0, 5);
+      if (cleaned.length) aliases[id] = cleaned;
+    }
+  const requestedQueue = String(input.queuedId || "");
+  return {
+    disabledIds,
+    aliases,
+    queuedId:
+      puzzleIds.has(requestedQueue) && !disabled.has(requestedQueue)
+        ? requestedQueue
+        : null,
+  };
+}
+function puzzleSettings(settings = {}) {
+  return normalizePuzzleSettings(settings.puzzles || {});
+}
+function puzzleMatchesGame(puzzle, game) {
+  const difficulty = difficultyOrder.indexOf(
+      String(puzzle.difficulty).toLowerCase(),
+    ),
+    minimum = difficultyOrder.indexOf(game.minDifficulty),
+    maximum = difficultyOrder.indexOf(game.maxDifficulty);
+  return (
+    game.categories.includes(puzzle.category) &&
+    difficulty >= minimum &&
+    difficulty <= maximum
+  );
+}
+function configuredPuzzle(puzzle, manager) {
+  return {
+    ...puzzle,
+    answers: [
+      ...new Set([...(puzzle.answers || []), ...(manager.aliases[puzzle.id] || [])]),
+    ],
+  };
+}
 function rotationState(settings = {}) {
   const value = settings.rotation || {};
   return {
@@ -678,20 +973,24 @@ function rotationState(settings = {}) {
     lastResult: value.lastResult || null,
   };
 }
-function choosePuzzle(settings = {}) {
+function choosePuzzle(settings = {}, options = {}) {
   const rotation = rotationState(settings),
     game = gameSettings(settings),
     minimum = difficultyOrder.indexOf(game.minDifficulty),
     maximum = difficultyOrder.indexOf(game.maxDifficulty),
+    manager = puzzleSettings(settings),
+    disabled = new Set(manager.disabledIds),
+    excluded = new Set(options.excludeIds || []),
     eligible = puzzles.filter(
-      (puzzle) =>
-        game.categories.includes(puzzle.category) &&
-        difficultyOrder.indexOf(String(puzzle.difficulty).toLowerCase()) >=
-          minimum &&
-        difficultyOrder.indexOf(String(puzzle.difficulty).toLowerCase()) <=
-          maximum,
+      (puzzle) => puzzleMatchesGame(puzzle, game) && !disabled.has(puzzle.id),
     ),
-    source = eligible.length ? eligible : puzzles,
+    enabled = puzzles.filter((puzzle) => !disabled.has(puzzle.id)),
+    base = eligible.length ? eligible : enabled.length ? enabled : puzzles,
+    filtered = base.filter((puzzle) => !excluded.has(puzzle.id)),
+    source = filtered.length ? filtered : base,
+    queued = options.ignoreQueue
+      ? null
+      : source.find((puzzle) => puzzle.id === manager.queuedId) || null,
     unseen = source.filter((puzzle) => !rotation.recentIds.includes(puzzle.id)),
     pool =
       unseen.length >= Math.min(10, source.length)
@@ -716,9 +1015,19 @@ function choosePuzzle(settings = {}) {
         (rotation.recentCategories.includes(puzzle.category) ? 0 : 2);
     for (let i = 0; i < weight; i++) weighted.push(puzzle);
   }
-  const puzzle =
-      weighted[Math.floor(Math.random() * weighted.length)] ||
-      source[Math.floor(Math.random() * source.length)],
+  const seed = crypto
+      .createHash("sha256")
+      .update(
+        `${options.salt || ""}|${rotation.rounds}|${rotation.skill}|${rotation.recentIds.join(",")}|${source.map((puzzle) => puzzle.id).join(",")}`,
+      )
+      .digest()
+      .readUInt32BE(0),
+    randomIndex = options.randomize
+      ? Math.floor(Math.random() * Math.max(1, weighted.length))
+      : seed % Math.max(1, weighted.length),
+    selected =
+      queued || weighted[randomIndex] || source[seed % Math.max(1, source.length)],
+    puzzle = configuredPuzzle(selected, manager),
     next = {
       ...rotation,
       recentIds: [...rotation.recentIds, puzzle.id].slice(-20),
@@ -726,7 +1035,56 @@ function choosePuzzle(settings = {}) {
         -6,
       ),
     };
-  return { puzzle, rotation: next };
+  return { puzzle, rotation: next, queued: Boolean(queued) };
+}
+function nextPuzzleSettings(settings, rotation, currentId) {
+  const manager = puzzleSettings(settings),
+    next = choosePuzzle(
+      {
+        ...settings,
+        rotation,
+        puzzles: { ...manager, queuedId: null },
+      },
+      { ignoreQueue: true, excludeIds: [currentId] },
+    );
+  return { ...manager, queuedId: next.puzzle.id };
+}
+function puzzleDashboardState(settings = {}) {
+  const manager = puzzleSettings(settings),
+    game = gameSettings(settings),
+    disabled = new Set(manager.disabledIds),
+    preview = choosePuzzle(settings).puzzle,
+    items = puzzles.map((puzzle) => ({
+      id: puzzle.id,
+      category: puzzle.category,
+      difficulty: puzzle.difficulty,
+      emojis: puzzle.emojis,
+      answer: puzzle.answers[0],
+      aliases: manager.aliases[puzzle.id] || [],
+      enabled: !disabled.has(puzzle.id),
+      eligible: puzzleMatchesGame(puzzle, game),
+      queued: puzzle.id === preview.id,
+    }));
+  return {
+    nextRound: {
+      id: preview.id,
+      category: preview.category,
+      difficulty: preview.difficulty,
+      emojis: preview.emojis,
+      answer: preview.answers[0],
+      acceptedAnswers: preview.answers.length,
+    },
+    summary: {
+      total: items.length,
+      enabled: items.filter((item) => item.enabled).length,
+      eligible: items.filter((item) => item.enabled && item.eligible).length,
+      customAliases: Object.values(manager.aliases).reduce(
+        (total, values) => total + values.length,
+        0,
+      ),
+    },
+    puzzles: items,
+  };
 }
 function emojiParts(value) {
   return [
@@ -822,14 +1180,24 @@ function recordPuzzleResult(rotation, round) {
     },
   };
 }
-async function saveTenantRotation(tenant, rotation, db = pool) {
+async function saveTenantRotation(
+  tenant,
+  rotation,
+  db = pool,
+  nextPuzzleConfig = null,
+) {
   const result = await db.query(
-    "UPDATE tenants SET settings=jsonb_set(settings,'{rotation}',$2::jsonb,true),updated_at=NOW() WHERE id=$1 RETURNING settings",
-    [tenant.id, JSON.stringify(rotation)],
+    nextPuzzleConfig
+      ? "UPDATE tenants SET settings=jsonb_set(jsonb_set(COALESCE(settings,'{}'::jsonb),'{rotation}',$2::jsonb,true),'{puzzles}',$3::jsonb,true),updated_at=NOW() WHERE id=$1 RETURNING settings"
+      : "UPDATE tenants SET settings=jsonb_set(COALESCE(settings,'{}'::jsonb),'{rotation}',$2::jsonb,true),updated_at=NOW() WHERE id=$1 RETURNING settings",
+    nextPuzzleConfig
+      ? [tenant.id, JSON.stringify(rotation), JSON.stringify(nextPuzzleConfig)]
+      : [tenant.id, JSON.stringify(rotation)],
   );
   tenant.settings = result.rows[0]?.settings || {
     ...(tenant.settings || {}),
     rotation,
+    ...(nextPuzzleConfig ? { puzzles: nextPuzzleConfig } : {}),
   };
 }
 function serializeActiveRound(round) {
@@ -1007,6 +1375,7 @@ async function guestState(session) {
     doublePointsActive = doublePointsUntil > Date.now();
   return {
     version: VERSION,
+    season: currentSeason(),
     tenant: { channel: "guest-test", displayName: "Guest Test Mode" },
     guest: {
       active: true,
@@ -1023,6 +1392,7 @@ async function guestState(session) {
       difficulty: game.difficulty,
       startedAt: game.startedAt,
       endsAt: game.endsAt,
+      finishedAt: game.status === "finished" ? game.finishedAt : null,
       winner: game.winner,
       correctAnswers: game.correctAnswers,
       answer: game.status === "finished" ? game.answers[0] : null,
@@ -1182,6 +1552,7 @@ async function finishGuestRound(session, expectedRound = null) {
   )
     return;
   round.status = "finished";
+  round.finishedAt = Date.now();
   round.visibleEmojis = round.emojis;
   round.nextRevealAt = null;
   await saveGuestRotation(session, recordPuzzleResult(round.rotation, round));
@@ -1204,7 +1575,8 @@ async function startGuestRound(
   if (
     !session ||
     (requireAutomatic && !session.settings?.automatic) ||
-    guestRounds.get(session.id)?.status === "open"
+    (guestRounds.get(session.id) &&
+      guestRounds.get(session.id)?.status !== "idle")
   )
     return false;
   const config = gameSettings(session.settings),
@@ -1458,12 +1830,15 @@ async function maintainKickConnections() {
   }
 }
 async function scores(id, period = "weekly") {
+  period = normalizePeriod(period);
   const start =
     period === "daily"
       ? "date_trunc('day',NOW())"
-      : period === "alltime"
-        ? null
-        : "date_trunc('week',NOW())";
+      : period === "season"
+        ? "date_trunc('month',NOW())"
+        : period === "alltime"
+          ? null
+          : "date_trunc('week',NOW())";
   if (!start)
     return (
       await pool.query(
@@ -1528,6 +1903,7 @@ async function state(tenant) {
           : [];
   return {
     version: VERSION,
+    season: currentSeason(),
     tenant: { channel: tenant.channel_name, displayName: tenant.display_name },
     theme: tenantTheme(tenant),
     round: game && {
@@ -1538,6 +1914,7 @@ async function state(tenant) {
       difficulty: game.difficulty,
       startedAt: game.startedAt,
       endsAt: game.endsAt,
+      finishedAt: game.status === "finished" ? game.finishedAt : null,
       winner: game.winner,
       correctAnswers: game.correctAnswers,
       answer: game.status === "finished" ? game.answers[0] : null,
@@ -1587,6 +1964,20 @@ async function state(tenant) {
 }
 function dashboardRound(round) {
   if (!round || round.status === "idle") return null;
+  const revealStage = Math.max(0, Number(round.revealStage || 0)),
+    recentCorrectAnswers = (round.correctAnswers || [])
+      .slice(-5)
+      .reverse()
+      .map((answer) => ({
+        username: answer.username,
+        placement: Number(answer.placement || 0),
+        points: Number(answer.points || 0),
+        responseMs: Number(answer.responseMs || 0),
+      })),
+    wrongGuessCount = [...(round.attempts?.values?.() || [])].reduce(
+      (total, attempt) => total + Number(attempt?.wrong || 0),
+      0,
+    );
   return {
     id: round.id,
     status: round.status,
@@ -1596,9 +1987,16 @@ function dashboardRound(round) {
     answer: round.answers?.[0] || null,
     startedAt: round.startedAt,
     endsAt: round.endsAt,
+    finishedAt: round.status === "finished" ? round.finishedAt : null,
     correctCount: round.correctAnswers?.length || 0,
+    recentCorrectAnswers,
+    wrongGuessCount,
     winner: round.winner?.username || null,
     isJackpot: Boolean(round.isJackpot),
+    clueStage: revealStage + 1,
+    clueCount: Number(round.revealCounts?.[revealStage] || 0),
+    totalClues: Number(round.revealParts?.length || 0),
+    nextRevealAt: Number(round.nextRevealAt || 0) || null,
   };
 }
 function sourceConnectionState(tenant, kind) {
@@ -1610,6 +2008,8 @@ function sourceConnectionState(tenant, kind) {
 async function dashboardLiveState(tenant) {
   const fresh = (await tenantById(tenant.id)) || tenant,
     config = gameSettings(fresh.settings),
+    nextPuzzle = choosePuzzle(fresh.settings).puzzle,
+    seasonLeaders = (await scores(fresh.id, "season")).slice(0, 3),
     round = rounds.get(fresh.id) || null,
     scoreboard = scoreboardStates.get(fresh.id) || {
       visible: false,
@@ -1699,6 +2099,8 @@ async function dashboardLiveState(tenant) {
   return {
     version: VERSION,
     now: Date.now(),
+    season: currentSeason(),
+    setup: setupState(fresh.settings),
     round: dashboardRound(round),
     schedule: {
       automatic: config.automatic,
@@ -1707,6 +2109,14 @@ async function dashboardLiveState(tenant) {
         fresh.next_round_at || Date.now() + config.frequencyMinutes * 60000,
       ),
     },
+    nextRound: {
+      id: nextPuzzle.id,
+      category: nextPuzzle.category,
+      difficulty: nextPuzzle.difficulty,
+      emojis: nextPuzzle.emojis,
+      answer: nextPuzzle.answers[0],
+      acceptedAnswers: nextPuzzle.answers.length,
+    },
     scoreboard: {
       visible: Boolean(scoreboard.visible && scoreboard.hideAt > Date.now()),
       period: scoreboard.period || "weekly",
@@ -1714,6 +2124,15 @@ async function dashboardLiveState(tenant) {
       shownBy: scoreboard.shownBy || null,
     },
     jackpot: Number(fresh.jackpot || 250),
+    leaderboard: {
+      period: "season",
+      entries: seasonLeaders.map((entry, index) => ({
+        rank: index + 1,
+        username: entry.username,
+        points: Number(entry.points || 0),
+        wins: Number(entry.wins || 0),
+      })),
+    },
     kick: {
       connected: Boolean(fresh.kick_access_token),
       tokenHealthy,
@@ -1724,10 +2143,10 @@ async function dashboardLiveState(tenant) {
     sources: { overlay, scoreboard: scoreboardSource },
     readiness: { ready, checks },
     actions: {
-      canStart: round?.status !== "open",
+      canStart: !round || round.status === "idle",
       canEnd: round?.status === "open",
       canSkip: round?.status === "open",
-      canShowScoreboard: round?.status !== "open",
+      canShowScoreboard: !round || round.status === "idle",
     },
   };
 }
@@ -1756,10 +2175,16 @@ async function push(tenant) {
   });
 }
 async function startRound(tenant, { forceJackpot = false } = {}) {
-  if (rounds.get(tenant.id)?.status === "open" || roundStarts.has(tenant.id))
+  const existing = rounds.get(tenant.id);
+  if ((existing && existing.status !== "idle") || roundStarts.has(tenant.id))
     return false;
   const config = gameSettings(tenant.settings),
     selection = choosePuzzle(tenant.settings),
+    queuedNext = nextPuzzleSettings(
+      tenant.settings,
+      selection.rotation,
+      selection.puzzle.id,
+    ),
     round = {
       ...selection.puzzle,
       puzzleId: selection.puzzle.id,
@@ -1786,7 +2211,7 @@ async function startRound(tenant, { forceJackpot = false } = {}) {
     round.startedAt = now;
     round.endsAt = now + duration;
     prepareReveals(round, duration, config.progressiveReveals);
-    await saveTenantRotation(tenant, selection.rotation, client);
+    await saveTenantRotation(tenant, selection.rotation, client, queuedNext);
     tenant.next_round_at = now + config.frequencyMinutes * 60000;
     await client.query("UPDATE tenants SET next_round_at=$2 WHERE id=$1", [
       tenant.id,
@@ -1827,7 +2252,9 @@ async function finishRound(tenant, expectedRound = null) {
     setTimeout(() => finishRound(tenant, round).catch(console.error), 100);
     return false;
   }
+  const finishedAt = Date.now();
   round.status = "finished";
+  round.finishedAt = finishedAt;
   round.visibleEmojis = round.emojis;
   round.nextRevealAt = null;
   let client;
@@ -1855,6 +2282,7 @@ async function finishRound(tenant, expectedRound = null) {
     round.pendingAnswers = pendingAnswers;
     round.finishRetries = finishRetries;
     round.status = "finished";
+    round.finishedAt = finishedAt;
     round.visibleEmojis = round.emojis;
     round.nextRevealAt = null;
     const history = await client.query(
@@ -1896,6 +2324,7 @@ async function finishRound(tenant, expectedRound = null) {
     tenant.settings = previousSettings;
     tenant.jackpot = previousJackpot;
     round.status = "open";
+    round.finishedAt = null;
     round.finishRetries = Number(round.finishRetries || 0) + 1;
     const retryDelay = Math.min(
       30000,
@@ -2363,13 +2792,23 @@ app.get("/dashboard/game-settings", async (req, res) => {
 app.post("/dashboard/game-settings", async (req, res) => {
   const t = await tenantBySession(req);
   if (!t) return res.status(401).json({ error: "Sign in required." });
-  res.json(
-    await queuedTenantSettings(t, async (fresh) => {
+  const result = await queuedTenantSettings(t, async (fresh) => {
       const input = Object.hasOwn(gamePresets, req.body.preset)
           ? { ...gamePresets[req.body.preset], ...req.body }
           : { ...gameSettings(fresh.settings), ...req.body },
         game = normalizeGameSettings(input),
+        manager = puzzleSettings(fresh.settings),
+        usable = puzzles.filter(
+          (puzzle) =>
+            puzzleMatchesGame(puzzle, game) &&
+            !manager.disabledIds.includes(puzzle.id),
+        ),
         nextRoundAt = Date.now() + game.frequencyMinutes * 60000;
+      if (!usable.length)
+        return {
+          error:
+            "Those game filters have no enabled puzzles. Enable a matching puzzle or widen the category and difficulty range.",
+        };
       await pool.query(
         "UPDATE tenants SET settings=COALESCE(settings,'{}'::jsonb)||$2::jsonb,next_round_at=$3,community_progress=LEAST(community_progress,$4::int-1),updated_at=NOW() WHERE id=$1",
         [fresh.id, JSON.stringify({ game }), nextRoundAt, game.communityTarget],
@@ -2379,8 +2818,138 @@ app.post("/dashboard/game-settings", async (req, res) => {
         syncActiveGuestSettings(fresh.id, { game }),
       ]);
       return { ok: true, settings: game, nextRoundAt };
-    }),
-  );
+    });
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+app.get("/dashboard/puzzles", async (req, res) => {
+  const t = await tenantBySession(req);
+  if (!t) return res.status(401).json({ error: "Sign in required." });
+  res.set("Cache-Control", "no-store").json(puzzleDashboardState(t.settings));
+});
+app.post("/dashboard/puzzle-action", async (req, res) => {
+  const t = await tenantBySession(req);
+  if (!t) return res.status(401).json({ error: "Sign in required." });
+  const result = await queuedTenantSettings(t, async (fresh) => {
+    const action = String(req.body.action || ""),
+      id = String(req.body.id || ""),
+      game = gameSettings(fresh.settings);
+    let manager = puzzleSettings(fresh.settings);
+    if (action === "toggle") {
+      if (!puzzleIds.has(id)) return { error: "Puzzle not found." };
+      const disabled = new Set(manager.disabledIds);
+      if (req.body.enabled === false) disabled.add(id);
+      else disabled.delete(id);
+      manager = normalizePuzzleSettings({
+        ...manager,
+        disabledIds: [...disabled],
+      });
+      const usable = puzzles.filter(
+        (puzzle) =>
+          puzzleMatchesGame(puzzle, game) &&
+          !manager.disabledIds.includes(puzzle.id),
+      );
+      if (!usable.length)
+        return {
+          error:
+            "Keep at least one puzzle enabled for the current category and difficulty filters.",
+        };
+    } else if (action === "aliases") {
+      if (!puzzleIds.has(id)) return { error: "Puzzle not found." };
+      manager = normalizePuzzleSettings({
+        ...manager,
+        aliases: { ...manager.aliases, [id]: req.body.aliases },
+      });
+    } else if (action === "queue") {
+      const puzzle = puzzles.find((item) => item.id === id);
+      if (
+        !puzzle ||
+        manager.disabledIds.includes(id) ||
+        !puzzleMatchesGame(puzzle, game)
+      )
+        return {
+          error:
+            "That puzzle is not available with the current game filters.",
+        };
+      manager = { ...manager, queuedId: id };
+    } else if (action === "shuffle") {
+      const next = choosePuzzle(
+        { ...fresh.settings, puzzles: { ...manager, queuedId: null } },
+        {
+          ignoreQueue: true,
+          excludeIds: manager.queuedId ? [manager.queuedId] : [],
+          randomize: true,
+          salt: crypto.randomUUID(),
+        },
+      );
+      manager = { ...manager, queuedId: next.puzzle.id };
+    } else if (action === "enable-all") {
+      manager = { ...manager, disabledIds: [] };
+    } else return { error: "Unknown puzzle action." };
+
+    manager = normalizePuzzleSettings(manager);
+    const queued = puzzles.find((puzzle) => puzzle.id === manager.queuedId);
+    if (
+      !queued ||
+      manager.disabledIds.includes(queued.id) ||
+      !puzzleMatchesGame(queued, game)
+    ) {
+      const next = choosePuzzle(
+        { ...fresh.settings, puzzles: { ...manager, queuedId: null } },
+        { ignoreQueue: true },
+      );
+      manager = { ...manager, queuedId: next.puzzle.id };
+    }
+    const saved = await pool.query(
+      "UPDATE tenants SET settings=COALESCE(settings,'{}'::jsonb)||$2::jsonb,updated_at=NOW() WHERE id=$1 RETURNING settings",
+      [fresh.id, JSON.stringify({ puzzles: manager })],
+    );
+    fresh.settings = saved.rows[0]?.settings || {
+      ...(fresh.settings || {}),
+      puzzles: manager,
+    };
+    await Promise.all([
+      push(fresh),
+      syncActiveGuestSettings(fresh.id, {
+        puzzles: {
+          disabledIds: manager.disabledIds,
+          aliases: manager.aliases,
+        },
+      }),
+    ]);
+    return { ok: true, ...puzzleDashboardState(fresh.settings) };
+  });
+  if (result.error) return res.status(400).json(result);
+  res.set("Cache-Control", "no-store").json(result);
+});
+app.post("/dashboard/setup", async (req, res) => {
+  const t = await tenantBySession(req);
+  if (!t) return res.status(401).json({ error: "Sign in required." });
+  const action = String(req.body.action || "");
+  if (!new Set(["complete", "dismiss", "reopen"]).has(action))
+    return res.status(400).json({ error: "Unknown setup action." });
+  const result = await queuedTenantSettings(t, async (fresh) => {
+    if (action === "reopen")
+      return { ok: true, reopen: true, setup: setupState(fresh.settings) };
+    const now = Date.now(),
+      existing = setupState(fresh.settings),
+      stored =
+        action === "complete"
+          ? { completedAt: now, dismissedAt: null }
+          : existing.completed
+            ? { completedAt: existing.completedAt, dismissedAt: null }
+            : { completedAt: null, dismissedAt: now },
+      updated = await pool.query(
+        "UPDATE tenants SET settings=COALESCE(settings,'{}'::jsonb)||$2::jsonb,updated_at=NOW() WHERE id=$1 RETURNING settings",
+        [fresh.id, JSON.stringify({ setup: stored })],
+      );
+    fresh.settings = updated.rows[0]?.settings || {
+      ...(fresh.settings || {}),
+      setup: stored,
+    };
+    return { ok: true, setup: setupState(fresh.settings) };
+  });
+  res.set("Cache-Control", "no-store").json(result);
 });
 app.post("/dashboard/community-settings", async (req, res) => {
   const t = await tenantBySession(req);
@@ -2417,7 +2986,8 @@ app.post("/dashboard/community-settings", async (req, res) => {
 app.get("/dashboard/insights", async (req, res) => {
   const t = await tenantBySession(req);
   if (!t) return res.status(401).json({ error: "Sign in required." });
-  const [summary, recent, categories] = await Promise.all([
+  const [summary, recent, categories, difficulties, trendResult, audience] =
+    await Promise.all([
     pool.query(
       `SELECT COUNT(*)::int rounds,COUNT(*) FILTER(WHERE solved)::int solved,COALESCE(ROUND(AVG(response_ms) FILTER(WHERE solved)),0)::int AS "averageResponseMs",COALESCE(ROUND(AVG(participants)),0)::int AS "averageParticipants",COUNT(*) FILTER(WHERE jackpot)::int AS jackpots,COUNT(*) FILTER(WHERE jackpot AND solved)::int AS "jackpotsWon" FROM round_history WHERE tenant_id=$1 AND finished_at>=NOW()-INTERVAL '30 days'`,
       [t.id],
@@ -2430,16 +3000,80 @@ app.get("/dashboard/insights", async (req, res) => {
       `SELECT category,COUNT(*)::int rounds,COUNT(*) FILTER(WHERE solved)::int solved FROM round_history WHERE tenant_id=$1 AND finished_at>=NOW()-INTERVAL '30 days' GROUP BY category ORDER BY rounds DESC,category`,
       [t.id],
     ),
+    pool.query(
+      `SELECT difficulty,COUNT(*)::int rounds,COUNT(*) FILTER(WHERE solved)::int solved FROM round_history WHERE tenant_id=$1 AND finished_at>=NOW()-INTERVAL '30 days' GROUP BY difficulty ORDER BY CASE difficulty WHEN 'easy' THEN 1 WHEN 'medium' THEN 2 WHEN 'hard' THEN 3 WHEN 'expert' THEN 4 ELSE 5 END,difficulty`,
+      [t.id],
+    ),
+    pool.query(
+      `SELECT COUNT(*) FILTER(WHERE finished_at>=NOW()-INTERVAL '7 days')::int AS "recentRounds",COUNT(*) FILTER(WHERE finished_at>=NOW()-INTERVAL '7 days' AND solved)::int AS "recentSolved",COALESCE(SUM(participants) FILTER(WHERE finished_at>=NOW()-INTERVAL '7 days'),0)::int AS "recentCorrectAnswers",COUNT(*) FILTER(WHERE finished_at<NOW()-INTERVAL '7 days' AND finished_at>=NOW()-INTERVAL '14 days')::int AS "previousRounds",COUNT(*) FILTER(WHERE finished_at<NOW()-INTERVAL '7 days' AND finished_at>=NOW()-INTERVAL '14 days' AND solved)::int AS "previousSolved",COALESCE(SUM(participants) FILTER(WHERE finished_at<NOW()-INTERVAL '7 days' AND finished_at>=NOW()-INTERVAL '14 days'),0)::int AS "previousCorrectAnswers" FROM round_history WHERE tenant_id=$1 AND finished_at>=NOW()-INTERVAL '14 days'`,
+      [t.id],
+    ),
+    pool.query(
+      `WITH solver_activity AS (SELECT user_key,COUNT(*)::int correct FROM score_events WHERE tenant_id=$1 AND won_at>=NOW()-INTERVAL '30 days' GROUP BY user_key) SELECT COUNT(*)::int AS "uniqueSolvers",COUNT(*) FILTER(WHERE correct>=2)::int AS "repeatSolvers",COALESCE(ROUND(AVG(correct)),0)::int AS "averageCorrect" FROM solver_activity`,
+      [t.id],
+    ),
   ]);
   const stats = summary.rows[0],
-    rounds = stats.rounds || 0;
-  res.json({
-    summary: {
-      ...stats,
-      solveRate: rounds ? Math.round((stats.solved / rounds) * 100) : 0,
+    rounds = Number(stats.rounds || 0),
+    addRate = (row) => ({
+      ...row,
+      rounds: Number(row.rounds || 0),
+      solved: Number(row.solved || 0),
+      solveRate: Number(row.rounds)
+        ? Math.round((Number(row.solved) / Number(row.rounds)) * 100)
+        : 0,
+    }),
+    categoryStats = categories.rows.map(addRate),
+    difficultyStats = difficulties.rows.map(addRate),
+    trendRow = trendResult.rows[0] || {},
+    recentTrend = addRate({
+      rounds: trendRow.recentRounds,
+      solved: trendRow.recentSolved,
+      correctAnswers: Number(trendRow.recentCorrectAnswers || 0),
+    }),
+    previousTrend = addRate({
+      rounds: trendRow.previousRounds,
+      solved: trendRow.previousSolved,
+      correctAnswers: Number(trendRow.previousCorrectAnswers || 0),
+    }),
+    trends = {
+      recent: recentTrend,
+      previous: previousTrend,
+      solveRateChange: recentTrend.solveRate - previousTrend.solveRate,
     },
+    audienceStats = {
+      uniqueSolvers: Number(audience.rows[0]?.uniqueSolvers || 0),
+      repeatSolvers: Number(audience.rows[0]?.repeatSolvers || 0),
+      averageCorrect: Number(audience.rows[0]?.averageCorrect || 0),
+    };
+  audienceStats.repeatRate = audienceStats.uniqueSolvers
+    ? Math.round(
+        (audienceStats.repeatSolvers / audienceStats.uniqueSolvers) * 100,
+      )
+    : 0;
+  const summaryStats = {
+      ...stats,
+      rounds,
+      solved: Number(stats.solved || 0),
+      solveRate: rounds
+        ? Math.round((Number(stats.solved || 0) / rounds) * 100)
+        : 0,
+    },
+    recommendations = insightRecommendations({
+      summary: summaryStats,
+      categories: categoryStats,
+      difficulties: difficultyStats,
+      trends,
+      audience: audienceStats,
+    });
+  res.json({
+    summary: summaryStats,
     recent: recent.rows,
-    categories: categories.rows,
+    categories: categoryStats,
+    difficulties: difficultyStats,
+    trends,
+    audience: audienceStats,
+    recommendations,
   });
 });
 app.get("/dashboard/guest-sessions", async (req, res) => {
@@ -2480,9 +3114,14 @@ app.post("/dashboard/guest-sessions", async (req, res) => {
   const id = crypto.randomUUID(),
     access = token(32),
     expiresAt = new Date(Date.now() + 86400000),
+    tenantPuzzles = puzzleSettings(t.settings),
     settings = {
       theme: tenantTheme(t),
       game: gameSettings(t.settings),
+      puzzles: {
+        disabledIds: tenantPuzzles.disabledIds,
+        aliases: tenantPuzzles.aliases,
+      },
       communityState: { progress: 0, completions: 0, doublePointsUntil: 0 },
       automatic: false,
       nextAutoAt: 0,
@@ -2592,11 +3231,17 @@ app.post("/g/:token/action", async (req, res) => {
   res.set("Cache-Control", "no-store");
   const action = String(req.body.action || "");
   if (action === "start") {
-    await startGuestRound(session, false);
+    if (!(await startGuestRound(session, false)))
+      return res
+        .status(409)
+        .json({ error: "Wait for the current round results to finish." });
     return res.json({ ok: true });
   }
   if (action === "jackpot") {
-    await startGuestRound(session, true);
+    if (!(await startGuestRound(session, true)))
+      return res
+        .status(409)
+        .json({ error: "Wait for the current round results to finish." });
     return res.json({ ok: true });
   }
   if (action === "answer")
@@ -2717,9 +3362,13 @@ app.post("/dashboard/live-action", async (req, res) => {
         .status(409)
         .json({ error: "There is no active round to skip." });
   } else if (action === "show-scoreboard") {
-    if (rounds.get(tenant.id)?.status === "open")
+    const activeRound = rounds.get(tenant.id);
+    if (activeRound && activeRound.status !== "idle")
       return res.status(409).json({
-        error: "End or skip the active round before showing the scoreboard.",
+        error:
+          activeRound.status === "finished"
+            ? "Wait for the round results to finish before showing the scoreboard."
+            : "End or skip the active round before showing the scoreboard.",
       });
     await showScoreboard(tenant, {
       period: req.body.period,

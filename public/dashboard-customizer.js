@@ -53,7 +53,7 @@
     nav.className = "dashboard-nav";
     nav.setAttribute("aria-label", "Dashboard sections");
     nav.innerHTML =
-      '<a href="#live-control" aria-current="page"><span aria-hidden="true">●</span>Live</a><a href="#sources"><span aria-hidden="true">◫</span>OBS</a><a href="#game"><span aria-hidden="true">⚙</span>Game</a><a href="#community"><span aria-hidden="true">◎</span>Community</a><a href="#appearance"><span aria-hidden="true">✦</span>Appearance</a>';
+      '<a href="#live-control" aria-current="page"><span aria-hidden="true">●</span>Broadcast</a><span class="dashboard-nav-divider" aria-hidden="true"></span><span class="dashboard-nav-label">Settings</span><a href="#sources"><span aria-hidden="true">◫</span>OBS</a><a href="#game"><span aria-hidden="true">⚙</span>Game</a><a href="#community"><span aria-hidden="true">◎</span>Community</a><a href="#appearance"><span aria-hidden="true">✦</span>Appearance</a>';
     account.after(nav);
 
     const eyebrow = main.querySelector(":scope > small");
@@ -196,7 +196,7 @@
       ?.addEventListener("click", async (event) => {
         const button = event.currentTarget,
           commands =
-            "!commands · !rank · !profile\n!scoreboard · !scoreboard daily · !scoreboard alltime\n!badges · !jackpot";
+            "!commands · !rank season · !profile\n!scoreboard season · !scoreboard daily · !scoreboard alltime\n!challenge · !badges · !jackpot";
         try {
           await navigator.clipboard.writeText(commands);
           button.textContent = "✓ Commands copied";
@@ -721,6 +721,8 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(read()),
       });
       fill(body.settings);
+      window.dashboardPuzzlesRefresh?.();
+      window.dashboardLiveRefresh?.();
       status.textContent = body.settings.automatic
         ? "✓ Saved. The new schedule and game rules are active."
         : "✓ Saved. Automatic rounds are paused.";
@@ -774,7 +776,15 @@ document.addEventListener("DOMContentLoaded", () => {
             "'": "&#39;",
           })[char],
       ),
-    time = (ms) => (ms ? `${(ms / 1000).toFixed(1)}s` : "—");
+    time = (ms) => (ms ? `${(ms / 1000).toFixed(1)}s` : "—"),
+    percent = (item) =>
+      Number.isFinite(Number(item?.solveRate))
+        ? Number(item.solveRate)
+        : Number(item?.rounds)
+          ? Math.round((Number(item.solved) / Number(item.rounds)) * 100)
+          : 0,
+    breakdown = (title, items, key) =>
+      `<section><h4>${title}</h4><div class="insight-breakdown-list">${items.length ? items.slice(0, 6).map((item) => { const rate = Math.max(0, Math.min(100, percent(item))); return `<div><span><b>${safe(item[key])}</b><small>${item.solved}/${item.rounds} solved</small></span><progress aria-label="${rate}% solved" value="${rate}" max="100"></progress><strong>${rate}%</strong></div>`; }).join("") : '<p class="muted">Complete more rounds to see this breakdown.</p>'}</div></section>`;
   fetch("/dashboard/insights")
     .then(async (response) => {
       const body = await response
@@ -785,11 +795,20 @@ document.addEventListener("DOMContentLoaded", () => {
       return body;
     })
     .then((body) => {
-      const s = body.summary,
-        hardest = [...body.categories]
-          .filter((item) => item.rounds >= 2)
-          .sort((a, b) => a.solved / a.rounds - b.solved / b.rounds)[0];
-      content.innerHTML = `<div class="insight-cards"><article><span>ROUNDS</span><b>${s.rounds}</b><small>last 30 days</small></article><article><span>SOLVE RATE</span><b>${s.solveRate}%</b><small>${s.solved} solved</small></article><article><span>WINNING SPEED</span><b>${time(s.averageResponseMs)}</b><small>average first answer</small></article><article><span>PARTICIPATION</span><b>${s.averageParticipants}</b><small>correct viewers / round</small></article></div>${hardest ? `<p class="insight-tip"><b>${safe(hardest.category)}</b> is currently the toughest category at ${Math.round((hardest.solved / hardest.rounds) * 100)}% solved.</p>` : ""}<div class="history-head"><h3>Recent rounds</h3><span>${s.jackpotsWon}/${s.jackpots} jackpots won</span></div><div class="round-list">${body.recent.length ? body.recent.map((round) => `<article><div class="round-emoji">${safe(round.emojis)}</div><div><b>${safe(round.answer)}</b><span>${safe(round.category)} · ${safe(round.difficulty)}</span></div><div class="round-result ${round.solved ? "solved" : "unsolved"}"><b>${round.solved ? `🏆 ${safe(round.winner)}` : "Not solved"}</b><span>${round.solved ? `${time(round.responseMs)} · ${round.participants} correct` : `${round.participants} correct`}${round.jackpot ? " · 💰 Jackpot" : ""}</span></div><time>${new Date(round.finishedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time></article>`).join("") : '<p class="muted empty-history">No completed cloud rounds yet. Your first finished round will appear here.</p>'}</div>`;
+      const s = body.summary || {},
+        recent = body.trends?.recent || {},
+        previous = body.trends?.previous || {},
+        previousRounds = Number(previous.rounds || 0),
+        change = Number(body.trends?.solveRateChange || 0),
+        changeLabel = previousRounds
+          ? `${change > 0 ? "+" : ""}${change} pts vs previous 7 days`
+          : "No rounds in the previous 7 days",
+        audience = body.audience || {},
+        recommendations = body.recommendations || [],
+        recommendationMarkup = recommendations.length
+          ? `<section class="insight-recommendations" aria-labelledby="insight-next-heading"><div class="insight-section-head"><div><span>RECOMMENDED NEXT STEPS</span><h3 id="insight-next-heading">What to try next</h3></div><small>Based only on your private round history</small></div><div>${recommendations.map((item) => `<article class="${safe(item.tone || "neutral")}"><span aria-hidden="true">${item.tone === "positive" ? "✓" : item.tone === "attention" ? "!" : "→"}</span><div><b>${safe(item.title)}</b><p>${safe(item.detail)}</p><a href="${safe(item.target || "#game")}">${safe(item.action)} <span aria-hidden="true">→</span></a></div></article>`).join("")}</div></section>`
+          : "";
+      content.innerHTML = `<div class="insight-cards"><article><span>ROUNDS</span><b>${Number(s.rounds || 0)}</b><small>last 30 days</small></article><article><span>SOLVE RATE</span><b>${Number(s.solveRate || 0)}%</b><small>${Number(s.solved || 0)} solved</small></article><article><span>WINNING SPEED</span><b>${time(s.averageResponseMs)}</b><small>average first answer</small></article><article><span>CORRECT VIEWERS</span><b>${Number(s.averageParticipants || 0)}</b><small>average per round</small></article></div><div class="insight-signals"><article><span>LAST 7 DAYS</span><b>${Number(recent.solveRate || 0)}% solved</b><small class="${previousRounds ? (change > 0 ? "up" : change < 0 ? "down" : "") : ""}">${changeLabel}</small></article><article><span>VIEWER RETURN</span><b>${Number(audience.repeatRate || 0)}%</b><small>${Number(audience.repeatSolvers || 0)} of ${Number(audience.uniqueSolvers || 0)} solvers answered correctly again</small></article></div>${recommendationMarkup}<details class="insight-breakdowns"><summary>Performance by category and difficulty</summary><div>${breakdown("Categories", body.categories || [], "category")}${breakdown("Difficulty", body.difficulties || [], "difficulty")}</div></details><div class="history-head"><h3>Recent rounds</h3><span>${Number(s.jackpotsWon || 0)}/${Number(s.jackpots || 0)} jackpots won</span></div><div class="round-list">${body.recent?.length ? body.recent.map((round) => `<article><div class="round-emoji">${safe(round.emojis)}</div><div><b>${safe(round.answer)}</b><span>${safe(round.category)} · ${safe(round.difficulty)}</span></div><div class="round-result ${round.solved ? "solved" : "unsolved"}"><b>${round.solved ? `🏆 ${safe(round.winner)}` : "Not solved"}</b><span>${round.solved ? `${time(round.responseMs)} · ${round.participants} correct` : `${round.participants} correct`}${round.jackpot ? " · 💰 Jackpot" : ""}</span></div><time>${new Date(round.finishedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</time></article>`).join("") : '<p class="muted empty-history">No completed cloud rounds yet. Your first finished round will appear here.</p>'}</div>`;
     })
     .catch((error) => {
       content.innerHTML = `<p class="insight-error">⚠ ${safe(error.message)}</p>`;

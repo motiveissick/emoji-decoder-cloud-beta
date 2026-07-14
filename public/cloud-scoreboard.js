@@ -2,6 +2,7 @@ const token = location.pathname.split("/")[2];
 const routeBase = location.pathname.startsWith("/g/") ? "/g" : "/o";
 const panel = document.querySelector("#scoreboard");
 const card = document.querySelector("#rank-card");
+const challengeList = document.querySelector("#rank-challenges");
 const safe = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,
@@ -28,12 +29,66 @@ function stat(value, label) {
   return `<span><b>${safe(value)}</b>${safe(label)}</span>`;
 }
 
+function seasonName(value, fallback = "Current Season") {
+  if (typeof value === "string") return value || fallback;
+  return value?.name || fallback;
+}
+
 function showCard(label, name, position, stats, next) {
+  card.classList.remove("challenges-mode");
+  if (challengeList) {
+    challengeList.hidden = true;
+    challengeList.innerHTML = "";
+  }
   document.querySelector("#rank-label").textContent = label;
   document.querySelector("#rank-name").textContent = name;
   document.querySelector("#rank-position").textContent = position;
   document.querySelector("#rank-stats").innerHTML = stats;
   document.querySelector("#rank-next").textContent = next;
+}
+
+function renderChallenges(next, value) {
+  const challenges = Array.isArray(value.challenges) ? value.challenges : [],
+    completed = challenges.filter((challenge) => {
+      const target = Math.max(1, Number(challenge.target) || 1),
+        progress = Math.max(0, Number(challenge.progress) || 0);
+      return Boolean(challenge.completed || progress >= target);
+    }).length,
+    visible = challenges.slice(0, 3),
+    season = seasonName(value.season || next.season);
+  showCard(
+    "SEASON CHALLENGES",
+    value.username || "Viewer",
+    season,
+    stat(`${completed}/${challenges.length}`, "complete") +
+      stat(Math.max(0, challenges.length - completed), "remaining") +
+      stat(challenges.length, "available"),
+    challenges.length
+      ? `Daily and weekly challenges refresh automatically${challenges.length > visible.length ? ` · ${challenges.length - visible.length} more available` : ""}.`
+      : "No challenges are active right now.",
+  );
+  card.classList.add("challenges-mode");
+  if (!challengeList) return;
+  challengeList.hidden = false;
+  challengeList.innerHTML =
+    visible
+      .map((challenge) => {
+        const target = Math.max(1, Number(challenge.target) || 1),
+          progress = Math.max(0, Number(challenge.progress) || 0),
+          complete = Boolean(challenge.completed || progress >= target),
+          percent = Math.min(100, Math.round((progress / target) * 100)),
+          period = String(challenge.period || "season").toUpperCase();
+        return `<article class="challenge-item${complete ? " complete" : ""}">
+          <span class="challenge-icon" aria-hidden="true">${safe(challenge.icon || (complete ? "✓" : "🎯"))}</span>
+          <div class="challenge-copy">
+            <div><b>${safe(challenge.name || "Viewer challenge")}</b><small>${safe(period)}</small></div>
+            <p>${safe(challenge.description || "Keep playing to make progress.")}</p>
+            <span class="challenge-track" aria-label="${safe(percent)} percent complete"><i style="--challenge-progress:${percent}%"></i></span>
+          </div>
+          <strong>${complete ? "DONE" : `${safe(Math.min(progress, target))}/${safe(target)}`}</strong>
+        </article>`;
+      })
+      .join("") || '<p class="challenge-empty">New challenges will appear here.</p>';
 }
 
 function renderCard(next) {
@@ -52,9 +107,9 @@ function renderCard(next) {
       "Emoji Decoder",
       "HELP",
       stat("!rank", "position") +
-        stat("!profile", "statistics") +
-        stat("!badges", "achievements"),
-      "!scoreboard · !jackpot · !commands",
+        stat("!challenge", "progress") +
+        stat("!profile", "statistics"),
+      "!scoreboard season · !badges · !jackpot · !commands",
     );
   else if (mode === "jackpot")
     showCard(
@@ -66,6 +121,7 @@ function renderCard(next) {
         stat(`${value.chance}%`, "chance"),
       "Any viewer can win · Fastest correct answer takes it",
     );
+  else if (mode === "challenges") renderChallenges(next, value);
   else if (mode === "profile")
     showCard(
       "EMOJI DECODER PROFILE",
@@ -90,7 +146,9 @@ function renderCard(next) {
     const period =
       value.period === "alltime"
         ? "ALL-TIME"
-        : String(value.period || "weekly").toUpperCase();
+        : value.period === "season"
+          ? seasonName(value.season || next.season).toUpperCase()
+          : String(value.period || "weekly").toUpperCase();
     showCard(
       `YOUR ${period} EMOJI DECODER RANK`,
       value.username,
@@ -121,8 +179,11 @@ function render(next) {
       !scoreboard.visible ||
       Boolean(round && round.status !== "idle"),
   );
+  const period = String(scoreboard.period || "weekly").toLowerCase();
   document.querySelector("#title").textContent =
-    `${scoreboard.period[0].toUpperCase() + scoreboard.period.slice(1)} High Scores`;
+    period === "season"
+      ? `${seasonName(next.season)} High Scores`
+      : `${period === "alltime" ? "All-time" : period[0].toUpperCase() + period.slice(1)} High Scores`;
   document.querySelector("#caller").textContent = scoreboard.shownBy
     ? `Requested by ${scoreboard.shownBy}`
     : "";
