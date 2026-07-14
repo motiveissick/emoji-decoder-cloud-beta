@@ -1,1 +1,38 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/scoreboard.css"><link rel="stylesheet" href="/widget-theme.css"></head><body><main id="scoreboard" class="scoreboard hidden"><div class="shine"></div><header><div><small>EMOJI DECODER</small><h1 id="title">Weekly High Scores</h1></div><span id="timer">12</span></header><section id="rows"></section><footer><span id="caller"></span><b>Type !scoreboard</b></footer></main><script src="/widget-theme.js"></script><script src="/cloud-scoreboard.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Emoji Decoder Scoreboard</title>
+    <link rel="stylesheet" href="/scoreboard.css" />
+    <link rel="stylesheet" href="/widget-theme.css" />
+  </head>
+  <body>
+    <main id="scoreboard" class="scoreboard hidden">
+      <div class="shine"></div>
+      <header>
+        <div>
+          <small>EMOJI DECODER</small>
+          <h1 id="title">Weekly High Scores</h1>
+        </div>
+        <span id="timer">12</span>
+      </header>
+      <section id="rows"></section>
+      <footer>
+        <span id="caller"></span><b>!scoreboard daily · weekly · alltime</b>
+      </footer>
+    </main>
+    <main id="rank-card" class="rank-card hidden" aria-live="polite">
+      <div class="shine"></div>
+      <small id="rank-label">YOUR WEEKLY EMOJI DECODER RANK</small>
+      <div class="rank-heading">
+        <h1 id="rank-name">Viewer</h1>
+        <b id="rank-position">UNRANKED</b>
+      </div>
+      <div id="rank-stats" class="rank-stats"></div>
+      <p id="rank-next">Win a round to enter the leaderboard!</p>
+    </main>
+    <script src="/widget-theme.js"></script>
+    <script src="/cloud-scoreboard.js"></script>
+  </body>
+</html>

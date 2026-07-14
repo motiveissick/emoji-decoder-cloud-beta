@@ -1,1 +1,22 @@
-{"name":"emoji-decoder-cloud-beta","version":"0.1.0","private":true,"type":"commonjs","scripts":{"start":"node server.js","db:migrate":"node migrate.js","test":"node --test"},"engines":{"node":">=22"},"dependencies":{"express":"5.1.0","pg":"8.16.3"}}
+{
+  "name": "emoji-decoder-cloud-beta",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "db:migrate": "node migrate.js",
+    "check": "node --check server.js && node --check dashboard-view.js && node --check public/dashboard-customizer.js && node --check public/dashboard-live.js && node --check public/dashboard-sources.js && node --check public/dashboard-dirty.js && node --check public/cloud-overlay.js && node --check public/cloud-scoreboard.js",
+    "test": "node --test",
+    "verify": "npm run check && npm test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.3.0",
+    "pg": "8.16.3"
+  }
+}

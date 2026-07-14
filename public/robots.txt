@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /about
+Allow: /assets/
+Disallow: /dashboard
+Disallow: /login
+Disallow: /join
+Disallow: /auth/
+Disallow: /o/
+Disallow: /g/
+
+Sitemap: https://emoji-decoder-beta.onrender.com/sitemap.xml
