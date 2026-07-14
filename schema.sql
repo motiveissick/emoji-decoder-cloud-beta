@@ -43,3 +43,16 @@ CREATE TABLE IF NOT EXISTS webhook_messages (
   message_id TEXT PRIMARY KEY,
   received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS guest_sessions (
+  id UUID PRIMARY KEY,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  access_token TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  settings JSONB NOT NULL DEFAULT '{}',
+  scores JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS guest_sessions_tenant ON guest_sessions(tenant_id,created_at DESC);
+CREATE INDEX IF NOT EXISTS guest_sessions_expiry ON guest_sessions(expires_at) WHERE revoked_at IS NULL;
