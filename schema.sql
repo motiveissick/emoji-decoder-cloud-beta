@@ -39,6 +39,23 @@ CREATE TABLE IF NOT EXISTS score_events (
   won_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS score_events_tenant_time ON score_events(tenant_id,won_at DESC);
+CREATE TABLE IF NOT EXISTS round_history (
+  id BIGSERIAL PRIMARY KEY,
+  tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  puzzle_id TEXT NOT NULL,
+  category TEXT NOT NULL,
+  difficulty TEXT NOT NULL,
+  emojis TEXT NOT NULL,
+  answer TEXT NOT NULL,
+  winner_username TEXT,
+  response_ms INTEGER,
+  participants INTEGER NOT NULL DEFAULT 0,
+  jackpot BOOLEAN NOT NULL DEFAULT FALSE,
+  solved BOOLEAN NOT NULL DEFAULT FALSE,
+  started_at TIMESTAMPTZ NOT NULL,
+  finished_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS round_history_tenant_time ON round_history(tenant_id,finished_at DESC);
 CREATE TABLE IF NOT EXISTS webhook_messages (
   message_id TEXT PRIMARY KEY,
   received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
