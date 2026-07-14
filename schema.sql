@@ -10,11 +10,17 @@ CREATE TABLE IF NOT EXISTS tenants (
   kick_token_expires_at BIGINT,
   settings JSONB NOT NULL DEFAULT '{}',
   jackpot INTEGER NOT NULL DEFAULT 250,
+  community_progress INTEGER NOT NULL DEFAULT 0,
+  community_completions INTEGER NOT NULL DEFAULT 0,
+  double_points_until BIGINT NOT NULL DEFAULT 0,
   next_round_at BIGINT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS kick_user_id TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS community_progress INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS community_completions INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS double_points_until BIGINT NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS tenants_kick_user_id_unique ON tenants(kick_user_id) WHERE kick_user_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS scores (
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
